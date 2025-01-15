@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,9 +19,6 @@ package org.mybatis.dynamic.sql.util.kotlin.spring
 import org.mybatis.dynamic.sql.BasicColumn
 import org.mybatis.dynamic.sql.SqlTable
 import org.mybatis.dynamic.sql.delete.render.DeleteStatementProvider
-import org.mybatis.dynamic.sql.insert.BatchInsertDSL
-import org.mybatis.dynamic.sql.insert.InsertDSL
-import org.mybatis.dynamic.sql.insert.MultiRowInsertDSL
 import org.mybatis.dynamic.sql.insert.render.BatchInsert
 import org.mybatis.dynamic.sql.insert.render.GeneralInsertStatementProvider
 import org.mybatis.dynamic.sql.insert.render.InsertSelectStatementProvider
@@ -37,6 +34,7 @@ import org.mybatis.dynamic.sql.util.kotlin.InsertSelectCompleter
 import org.mybatis.dynamic.sql.util.kotlin.KotlinBatchInsertCompleter
 import org.mybatis.dynamic.sql.util.kotlin.KotlinInsertCompleter
 import org.mybatis.dynamic.sql.util.kotlin.KotlinMultiRowInsertCompleter
+import org.mybatis.dynamic.sql.util.kotlin.MultiSelectCompleter
 import org.mybatis.dynamic.sql.util.kotlin.SelectCompleter
 import org.mybatis.dynamic.sql.util.kotlin.UpdateCompleter
 import org.mybatis.dynamic.sql.util.kotlin.model.count
@@ -48,7 +46,6 @@ import org.mybatis.dynamic.sql.util.kotlin.model.insertBatch
 import org.mybatis.dynamic.sql.util.kotlin.model.insertInto
 import org.mybatis.dynamic.sql.util.kotlin.model.insertMultiple
 import org.mybatis.dynamic.sql.util.kotlin.model.insertSelect
-import org.mybatis.dynamic.sql.util.kotlin.model.into
 import org.mybatis.dynamic.sql.util.kotlin.model.select
 import org.mybatis.dynamic.sql.util.kotlin.model.selectDistinct
 import org.mybatis.dynamic.sql.util.kotlin.model.update
@@ -83,26 +80,8 @@ fun <T : Any> insertMultiple(
 ): MultiRowInsertStatementProvider<T> =
     insertMultiple(rows, completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)
 
-fun insertSelect(table: SqlTable, completer: InsertSelectCompleter): InsertSelectStatementProvider =
-    insertSelect(table, completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)
-
-@Deprecated("Please switch to the insertBatch statement in the spring package")
-fun <T> BatchInsertDSL.IntoGatherer<T>.into(table: SqlTable, completer: BatchInsertDSL<T>.() -> Unit): BatchInsert<T> =
-    into(table, completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)
-
-@Deprecated("Please switch to the insert statement in the spring package")
-fun <T> InsertDSL.IntoGatherer<T>.into(
-    table: SqlTable,
-    completer: InsertDSL<T>.() -> Unit
-): InsertStatementProvider<T> =
-    into(table, completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)
-
-@Deprecated("Please switch to the insertMultiple statement in the spring package")
-fun <T> MultiRowInsertDSL.IntoGatherer<T>.into(
-    table: SqlTable,
-    completer: MultiRowInsertDSL<T>.() -> Unit
-): MultiRowInsertStatementProvider<T> =
-    into(table, completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)
+fun insertSelect(completer: InsertSelectCompleter): InsertSelectStatementProvider =
+    insertSelect(completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)
 
 fun select(vararg columns: BasicColumn, completer: SelectCompleter): SelectStatementProvider =
     select(columns.asList(), completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)
@@ -115,6 +94,9 @@ fun selectDistinct(vararg columns: BasicColumn, completer: SelectCompleter): Sel
 
 fun selectDistinct(columns: List<BasicColumn>, completer: SelectCompleter): SelectStatementProvider =
     selectDistinct(columns, completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)
+
+fun multiSelect(completer: MultiSelectCompleter): SelectStatementProvider =
+    org.mybatis.dynamic.sql.util.kotlin.model.multiSelect(completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)
 
 fun update(table: SqlTable, completer: UpdateCompleter): UpdateStatementProvider =
     update(table, completer).render(RenderingStrategies.SPRING_NAMED_PARAMETER)

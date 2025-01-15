@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,87 +15,105 @@
  */
 package org.mybatis.dynamic.sql.where;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.mybatis.dynamic.sql.AndOrCriteriaGroup;
-import org.mybatis.dynamic.sql.SqlCriterion;
+import org.jspecify.annotations.Nullable;
+import org.mybatis.dynamic.sql.common.AbstractBooleanExpressionModel;
+import org.mybatis.dynamic.sql.configuration.StatementConfiguration;
+import org.mybatis.dynamic.sql.render.RenderingContext;
 import org.mybatis.dynamic.sql.render.RenderingStrategy;
 import org.mybatis.dynamic.sql.render.TableAliasCalculator;
+import org.mybatis.dynamic.sql.util.FragmentAndParameters;
+import org.mybatis.dynamic.sql.where.render.DefaultWhereClauseProvider;
 import org.mybatis.dynamic.sql.where.render.WhereClauseProvider;
 import org.mybatis.dynamic.sql.where.render.WhereRenderer;
 
-public class WhereModel {
-    private static final WhereClauseProvider EMPTY_WHERE_CLAUSE =
-            new WhereClauseProvider.Builder().withWhereClause("").build(); //$NON-NLS-1$
+public class WhereModel extends AbstractBooleanExpressionModel {
+    private final StatementConfiguration statementConfiguration;
 
-    private final SqlCriterion initialCriterion;
-    private final List<AndOrCriteriaGroup> subCriteria = new ArrayList<>();
-
-    public WhereModel(SqlCriterion initialCriterion, List<AndOrCriteriaGroup> subCriteria) {
-        this.initialCriterion = initialCriterion;
-        this.subCriteria.addAll(subCriteria);
-    }
-
-    public Optional<SqlCriterion> initialCriterion() {
-        return Optional.ofNullable(initialCriterion);
-    }
-
-    public List<AndOrCriteriaGroup> subCriteria() {
-        return Collections.unmodifiableList(subCriteria);
+    private WhereModel(Builder builder) {
+        super(builder);
+        statementConfiguration = Objects.requireNonNull(builder.statementConfiguration);
     }
 
     /**
      * Renders a where clause without table aliases.
      *
-     * @param renderingStrategy rendering strategy
+     * @param renderingStrategy
+     *            rendering strategy
+     *
      * @return rendered where clause
      */
-    public WhereClauseProvider render(RenderingStrategy renderingStrategy) {
-        return WhereRenderer.withWhereModel(this)
-                .withRenderingStrategy(renderingStrategy)
-                .withSequence(new AtomicInteger(1))
-                .withTableAliasCalculator(TableAliasCalculator.empty())
-                .build()
-                .render()
-                .orElse(EMPTY_WHERE_CLAUSE);
+    public Optional<WhereClauseProvider> render(RenderingStrategy renderingStrategy) {
+        RenderingContext renderingContext = RenderingContext.withRenderingStrategy(renderingStrategy)
+                .withStatementConfiguration(statementConfiguration).build();
+
+        return render(renderingContext);
     }
 
-    public WhereClauseProvider render(RenderingStrategy renderingStrategy,
-            TableAliasCalculator tableAliasCalculator) {
-        return WhereRenderer.withWhereModel(this)
+    public Optional<WhereClauseProvider> render(RenderingStrategy renderingStrategy,
+                                                TableAliasCalculator tableAliasCalculator) {
+        RenderingContext renderingContext = RenderingContext
                 .withRenderingStrategy(renderingStrategy)
-                .withSequence(new AtomicInteger(1))
                 .withTableAliasCalculator(tableAliasCalculator)
-                .build()
-                .render()
-                .orElse(EMPTY_WHERE_CLAUSE);
+                .withStatementConfiguration(statementConfiguration)
+                .build();
+
+        return render(renderingContext);
     }
 
-    public WhereClauseProvider render(RenderingStrategy renderingStrategy,
-            String parameterName) {
-        return WhereRenderer.withWhereModel(this)
+    public Optional<WhereClauseProvider> render(RenderingStrategy renderingStrategy, String parameterName) {
+        RenderingContext renderingContext = RenderingContext
                 .withRenderingStrategy(renderingStrategy)
-                .withSequence(new AtomicInteger(1))
-                .withTableAliasCalculator(TableAliasCalculator.empty())
                 .withParameterName(parameterName)
-                .build()
-                .render()
-                .orElse(EMPTY_WHERE_CLAUSE);
+                .withStatementConfiguration(statementConfiguration)
+                .build();
+
+        return render(renderingContext);
     }
 
-    public WhereClauseProvider render(RenderingStrategy renderingStrategy,
+    public Optional<WhereClauseProvider> render(RenderingStrategy renderingStrategy,
             TableAliasCalculator tableAliasCalculator, String parameterName) {
-        return WhereRenderer.withWhereModel(this)
+        RenderingContext renderingContext = RenderingContext
                 .withRenderingStrategy(renderingStrategy)
-                .withSequence(new AtomicInteger(1))
                 .withTableAliasCalculator(tableAliasCalculator)
                 .withParameterName(parameterName)
+                .withStatementConfiguration(statementConfiguration)
+                .build();
+
+        return render(renderingContext);
+    }
+
+    private Optional<WhereClauseProvider> render(RenderingContext renderingContext) {
+        return WhereRenderer.withWhereModel(this)
+                .withRenderingContext(renderingContext)
                 .build()
                 .render()
-                .orElse(EMPTY_WHERE_CLAUSE);
+                .map(this::toWhereClauseProvider);
+    }
+
+    private WhereClauseProvider toWhereClauseProvider(FragmentAndParameters fragmentAndParameters) {
+        return DefaultWhereClauseProvider.withWhereClause(fragmentAndParameters.fragment())
+                .withParameters(fragmentAndParameters.parameters())
+                .build();
+    }
+
+    public static class Builder extends AbstractBuilder<Builder> {
+        private @Nullable StatementConfiguration statementConfiguration;
+
+        public Builder withStatementConfiguration(StatementConfiguration statementConfiguration) {
+            this.statementConfiguration = statementConfiguration;
+            return this;
+        }
+
+        public WhereModel build() {
+            return new WhereModel(this);
+        }
+
+        @Override
+        protected Builder getThis() {
+            return this;
+        }
     }
 }

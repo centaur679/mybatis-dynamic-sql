@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,24 +15,35 @@
  */
 package org.mybatis.dynamic.sql.delete;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
+import org.mybatis.dynamic.sql.SortSpecification;
 import org.mybatis.dynamic.sql.SqlTable;
+import org.mybatis.dynamic.sql.common.OrderByModel;
+import org.mybatis.dynamic.sql.configuration.StatementConfiguration;
 import org.mybatis.dynamic.sql.util.Buildable;
-import org.mybatis.dynamic.sql.where.AbstractWhereDSL;
-import org.mybatis.dynamic.sql.where.AbstractWhereSupport;
-import org.mybatis.dynamic.sql.where.WhereModel;
+import org.mybatis.dynamic.sql.util.Utilities;
+import org.mybatis.dynamic.sql.where.AbstractWhereFinisher;
+import org.mybatis.dynamic.sql.where.AbstractWhereStarter;
+import org.mybatis.dynamic.sql.where.EmbeddedWhereModel;
 
-public class DeleteDSL<R> extends AbstractWhereSupport<DeleteDSL<R>.DeleteWhereBuilder> implements Buildable<R> {
+public class DeleteDSL<R> implements AbstractWhereStarter<DeleteDSL<R>.DeleteWhereBuilder, DeleteDSL<R>>,
+        Buildable<R> {
 
     private final Function<DeleteModel, R> adapterFunction;
     private final SqlTable table;
-    private final String tableAlias;
-    private final DeleteWhereBuilder whereBuilder = new DeleteWhereBuilder();
+    private final @Nullable String tableAlias;
+    private @Nullable DeleteWhereBuilder whereBuilder;
+    private final StatementConfiguration statementConfiguration = new StatementConfiguration();
+    private @Nullable Long limit;
+    private @Nullable OrderByModel orderByModel;
 
-    private DeleteDSL(SqlTable table, String tableAlias, Function<DeleteModel, R> adapterFunction) {
+    private DeleteDSL(SqlTable table, @Nullable String tableAlias, Function<DeleteModel, R> adapterFunction) {
         this.table = Objects.requireNonNull(table);
         this.tableAlias = tableAlias;
         this.adapterFunction = Objects.requireNonNull(adapterFunction);
@@ -40,7 +51,26 @@ public class DeleteDSL<R> extends AbstractWhereSupport<DeleteDSL<R>.DeleteWhereB
 
     @Override
     public DeleteWhereBuilder where() {
+        whereBuilder = Utilities.buildIfNecessary(whereBuilder, DeleteWhereBuilder::new);
         return whereBuilder;
+    }
+
+    public DeleteDSL<R> limit(long limit) {
+        return limitWhenPresent(limit);
+    }
+
+    public DeleteDSL<R> limitWhenPresent(@Nullable Long limit) {
+        this.limit = limit;
+        return this;
+    }
+
+    public DeleteDSL<R> orderBy(SortSpecification... columns) {
+        return orderBy(Arrays.asList(columns));
+    }
+
+    public DeleteDSL<R> orderBy(Collection<? extends SortSpecification> columns) {
+        orderByModel = OrderByModel.of(columns);
+        return this;
     }
 
     /**
@@ -49,18 +79,27 @@ public class DeleteDSL<R> extends AbstractWhereSupport<DeleteDSL<R>.DeleteWhereB
      *
      * @return the model class
      */
-    @NotNull
     @Override
     public R build() {
         DeleteModel deleteModel = DeleteModel.withTable(table)
                 .withTableAlias(tableAlias)
-                .withWhereModel(whereBuilder.buildWhereModel())
+                .withLimit(limit)
+                .withOrderByModel(orderByModel)
+                .withWhereModel(whereBuilder == null ? null : whereBuilder.buildWhereModel())
+                .withStatementConfiguration(statementConfiguration)
                 .build();
+
         return adapterFunction.apply(deleteModel);
     }
 
+    @Override
+    public DeleteDSL<R> configureStatement(Consumer<StatementConfiguration> consumer) {
+        consumer.accept(statementConfiguration);
+        return this;
+    }
+
     public static <R> DeleteDSL<R> deleteFrom(Function<DeleteModel, R> adapterFunction, SqlTable table,
-                                              String tableAlias) {
+            @Nullable String tableAlias) {
         return new DeleteDSL<>(table, tableAlias, adapterFunction);
     }
 
@@ -72,11 +111,29 @@ public class DeleteDSL<R> extends AbstractWhereSupport<DeleteDSL<R>.DeleteWhereB
         return deleteFrom(Function.identity(), table, tableAlias);
     }
 
-    public class DeleteWhereBuilder extends AbstractWhereDSL<DeleteWhereBuilder> implements Buildable<R> {
+    public class DeleteWhereBuilder extends AbstractWhereFinisher<DeleteWhereBuilder> implements Buildable<R> {
 
-        private DeleteWhereBuilder() {}
+        private DeleteWhereBuilder() {
+            super(DeleteDSL.this);
+        }
 
-        @NotNull
+        public DeleteDSL<R> limit(long limit) {
+            return limitWhenPresent(limit);
+        }
+
+        public DeleteDSL<R> limitWhenPresent(Long limit) {
+            return DeleteDSL.this.limitWhenPresent(limit);
+        }
+
+        public DeleteDSL<R> orderBy(SortSpecification... columns) {
+            return orderBy(Arrays.asList(columns));
+        }
+
+        public DeleteDSL<R> orderBy(Collection<? extends SortSpecification> columns) {
+            orderByModel = OrderByModel.of(columns);
+            return DeleteDSL.this;
+        }
+
         @Override
         public R build() {
             return DeleteDSL.this.build();
@@ -87,8 +144,8 @@ public class DeleteDSL<R> extends AbstractWhereSupport<DeleteDSL<R>.DeleteWhereB
             return this;
         }
 
-        protected WhereModel buildWhereModel() {
-            return internalBuild();
+        protected EmbeddedWhereModel buildWhereModel() {
+            return buildModel();
         }
     }
 }

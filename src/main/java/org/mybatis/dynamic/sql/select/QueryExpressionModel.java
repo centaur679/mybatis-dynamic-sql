@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,24 +21,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
 import org.mybatis.dynamic.sql.BasicColumn;
 import org.mybatis.dynamic.sql.SqlTable;
 import org.mybatis.dynamic.sql.TableExpression;
 import org.mybatis.dynamic.sql.select.join.JoinModel;
-import org.mybatis.dynamic.sql.where.WhereModel;
+import org.mybatis.dynamic.sql.util.Validator;
+import org.mybatis.dynamic.sql.where.EmbeddedWhereModel;
 
 public class QueryExpressionModel {
-    private final String connector;
+    private final @Nullable String connector;
     private final boolean isDistinct;
     private final List<BasicColumn> selectList;
     private final TableExpression table;
-    private final JoinModel joinModel;
+    private final @Nullable JoinModel joinModel;
     private final Map<SqlTable, String> tableAliases;
-    private final WhereModel whereModel;
-    private final GroupByModel groupByModel;
+    private final @Nullable EmbeddedWhereModel whereModel;
+    private final @Nullable GroupByModel groupByModel;
+    private final @Nullable HavingModel havingModel;
 
     private QueryExpressionModel(Builder builder) {
         connector = builder.connector;
@@ -49,6 +51,8 @@ public class QueryExpressionModel {
         tableAliases = builder.tableAliases;
         whereModel = builder.whereModel;
         groupByModel = builder.groupByModel;
+        havingModel = builder.havingModel;
+        Validator.assertNotEmpty(selectList, "ERROR.13"); //$NON-NLS-1$
     }
 
     public Optional<String> connector() {
@@ -59,8 +63,8 @@ public class QueryExpressionModel {
         return isDistinct;
     }
 
-    public <R> Stream<R> mapColumns(Function<BasicColumn, R> mapper) {
-        return selectList.stream().map(mapper);
+    public Stream<BasicColumn> columns() {
+        return selectList.stream();
     }
 
     public TableExpression table() {
@@ -71,7 +75,7 @@ public class QueryExpressionModel {
         return tableAliases;
     }
 
-    public Optional<WhereModel> whereModel() {
+    public Optional<EmbeddedWhereModel> whereModel() {
         return Optional.ofNullable(whereModel);
     }
 
@@ -83,21 +87,26 @@ public class QueryExpressionModel {
         return Optional.ofNullable(groupByModel);
     }
 
-    public static Builder withSelectList(List<BasicColumn> columnList) {
+    public Optional<HavingModel> havingModel() {
+        return Optional.ofNullable(havingModel);
+    }
+
+    public static Builder withSelectList(List<? extends BasicColumn> columnList) {
         return new Builder().withSelectList(columnList);
     }
 
     public static class Builder {
-        private String connector;
+        private @Nullable String connector;
         private boolean isDistinct;
         private final List<BasicColumn> selectList = new ArrayList<>();
-        private TableExpression table;
+        private @Nullable TableExpression table;
         private final Map<SqlTable, String> tableAliases = new HashMap<>();
-        private WhereModel whereModel;
-        private JoinModel joinModel;
-        private GroupByModel groupByModel;
+        private @Nullable EmbeddedWhereModel whereModel;
+        private @Nullable JoinModel joinModel;
+        private @Nullable GroupByModel groupByModel;
+        private @Nullable HavingModel havingModel;
 
-        public Builder withConnector(String connector) {
+        public Builder withConnector(@Nullable String connector) {
             this.connector = connector;
             return this;
         }
@@ -117,7 +126,7 @@ public class QueryExpressionModel {
             return this;
         }
 
-        public Builder withSelectList(List<BasicColumn> selectList) {
+        public Builder withSelectList(List<? extends BasicColumn> selectList) {
             this.selectList.addAll(selectList);
             return this;
         }
@@ -127,18 +136,23 @@ public class QueryExpressionModel {
             return this;
         }
 
-        public Builder withWhereModel(WhereModel whereModel) {
+        public Builder withWhereModel(@Nullable EmbeddedWhereModel whereModel) {
             this.whereModel = whereModel;
             return this;
         }
 
-        public Builder withJoinModel(JoinModel joinModel) {
+        public Builder withJoinModel(@Nullable JoinModel joinModel) {
             this.joinModel = joinModel;
             return this;
         }
 
-        public Builder withGroupByModel(GroupByModel groupByModel) {
+        public Builder withGroupByModel(@Nullable GroupByModel groupByModel) {
             this.groupByModel = groupByModel;
+            return this;
+        }
+
+        public Builder withHavingModel(@Nullable HavingModel havingModel) {
+            this.havingModel = havingModel;
             return this;
         }
 

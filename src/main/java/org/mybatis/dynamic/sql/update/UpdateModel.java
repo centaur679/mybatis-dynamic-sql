@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,28 +19,38 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 import org.mybatis.dynamic.sql.SqlTable;
+import org.mybatis.dynamic.sql.common.CommonBuilder;
+import org.mybatis.dynamic.sql.common.OrderByModel;
+import org.mybatis.dynamic.sql.configuration.StatementConfiguration;
 import org.mybatis.dynamic.sql.render.RenderingStrategy;
 import org.mybatis.dynamic.sql.update.render.UpdateRenderer;
 import org.mybatis.dynamic.sql.update.render.UpdateStatementProvider;
 import org.mybatis.dynamic.sql.util.AbstractColumnMapping;
-import org.mybatis.dynamic.sql.where.WhereModel;
+import org.mybatis.dynamic.sql.util.Validator;
+import org.mybatis.dynamic.sql.where.EmbeddedWhereModel;
 
 public class UpdateModel {
     private final SqlTable table;
-    private final String tableAlias;
-    private final WhereModel whereModel;
+    private final @Nullable String tableAlias;
+    private final @Nullable EmbeddedWhereModel whereModel;
     private final List<AbstractColumnMapping> columnMappings;
+    private final @Nullable Long limit;
+    private final @Nullable OrderByModel orderByModel;
+    private final StatementConfiguration statementConfiguration;
 
     private UpdateModel(Builder builder) {
-        table = Objects.requireNonNull(builder.table);
-        whereModel = builder.whereModel;
+        table = Objects.requireNonNull(builder.table());
+        whereModel = builder.whereModel();
         columnMappings = Objects.requireNonNull(builder.columnMappings);
-        tableAlias = builder.tableAlias;
+        tableAlias = builder.tableAlias();
+        limit = builder.limit();
+        orderByModel = builder.orderByModel();
+        Validator.assertNotEmpty(columnMappings, "ERROR.17"); //$NON-NLS-1$
+        statementConfiguration = Objects.requireNonNull(builder.statementConfiguration());
     }
 
     public SqlTable table() {
@@ -51,15 +61,26 @@ public class UpdateModel {
         return Optional.ofNullable(tableAlias);
     }
 
-    public Optional<WhereModel> whereModel() {
+    public Optional<EmbeddedWhereModel> whereModel() {
         return Optional.ofNullable(whereModel);
     }
 
-    public <R> Stream<R> mapColumnMappings(Function<AbstractColumnMapping, R> mapper) {
-        return columnMappings.stream().map(mapper);
+    public Stream<AbstractColumnMapping> columnMappings() {
+        return columnMappings.stream();
     }
 
-    @NotNull
+    public Optional<Long> limit() {
+        return Optional.ofNullable(limit);
+    }
+
+    public Optional<OrderByModel> orderByModel() {
+        return Optional.ofNullable(orderByModel);
+    }
+
+    public StatementConfiguration statementConfiguration() {
+        return statementConfiguration;
+    }
+
     public UpdateStatementProvider render(RenderingStrategy renderingStrategy) {
         return UpdateRenderer.withUpdateModel(this)
                 .withRenderingStrategy(renderingStrategy)
@@ -71,29 +92,16 @@ public class UpdateModel {
         return new Builder().withTable(table);
     }
 
-    public static class Builder {
-        private SqlTable table;
-        private String tableAlias;
-        private WhereModel whereModel;
+    public static class Builder extends CommonBuilder<Builder> {
         private final List<AbstractColumnMapping> columnMappings = new ArrayList<>();
 
-        public Builder withTable(SqlTable table) {
-            this.table = table;
-            return this;
-        }
-
-        public Builder withTableAlias(String tableAlias) {
-            this.tableAlias = tableAlias;
-            return this;
-        }
-
-        public Builder withColumnMappings(List<AbstractColumnMapping> columnMappings) {
+        public Builder withColumnMappings(List<? extends AbstractColumnMapping> columnMappings) {
             this.columnMappings.addAll(columnMappings);
             return this;
         }
 
-        public Builder withWhereModel(WhereModel whereModel) {
-            this.whereModel = whereModel;
+        @Override
+        protected Builder getThis() {
             return this;
         }
 

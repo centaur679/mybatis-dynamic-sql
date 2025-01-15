@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,11 +17,13 @@ package org.mybatis.dynamic.sql.select;
 
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
+
 public class PagingModel {
 
-    private final Long limit;
-    private final Long offset;
-    private final Long fetchFirstRows;
+    private final @Nullable Long limit;
+    private final @Nullable Long offset;
+    private final @Nullable Long fetchFirstRows;
 
     private PagingModel(Builder builder) {
         super();
@@ -43,27 +45,31 @@ public class PagingModel {
     }
 
     public static class Builder {
-        private Long limit;
-        private Long offset;
-        private Long fetchFirstRows;
+        private @Nullable Long limit;
+        private @Nullable Long offset;
+        private @Nullable Long fetchFirstRows;
 
-        public Builder withLimit(Long limit) {
+        public Builder withLimit(@Nullable Long limit) {
             this.limit = limit;
             return this;
         }
 
-        public Builder withOffset(Long offset) {
+        public Builder withOffset(@Nullable Long offset) {
             this.offset = offset;
             return this;
         }
 
-        public Builder withFetchFirstRows(Long fetchFirstRows) {
+        public Builder withFetchFirstRows(@Nullable Long fetchFirstRows) {
             this.fetchFirstRows = fetchFirstRows;
             return this;
         }
 
-        public PagingModel build() {
-            return new PagingModel(this);
+        public Optional<PagingModel> build() {
+            if (limit == null && offset == null && fetchFirstRows == null) {
+                return Optional.empty();
+            }
+
+            return Optional.of(new PagingModel(this));
         }
     }
 }

@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,51 +15,44 @@
  */
 package org.mybatis.dynamic.sql.select.render;
 
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Objects;
 
-import org.mybatis.dynamic.sql.render.RenderingStrategy;
+import org.mybatis.dynamic.sql.render.RenderedParameterInfo;
+import org.mybatis.dynamic.sql.render.RenderingContext;
 import org.mybatis.dynamic.sql.select.PagingModel;
 import org.mybatis.dynamic.sql.util.FragmentAndParameters;
 
 public class LimitAndOffsetPagingModelRenderer {
-    private final RenderingStrategy renderingStrategy;
+    private final RenderingContext renderingContext;
     private final Long limit;
     private final PagingModel pagingModel;
-    private final AtomicInteger sequence;
 
-    public LimitAndOffsetPagingModelRenderer(RenderingStrategy renderingStrategy,
-            Long limit, PagingModel pagingModel, AtomicInteger sequence) {
-        this.renderingStrategy = renderingStrategy;
-        this.limit = limit;
+    public LimitAndOffsetPagingModelRenderer(RenderingContext renderingContext,
+                                             Long limit, PagingModel pagingModel) {
+        this.renderingContext = renderingContext;
+        this.limit = Objects.requireNonNull(limit);
         this.pagingModel = pagingModel;
-        this.sequence = sequence;
     }
 
-    public Optional<FragmentAndParameters> render() {
+    public FragmentAndParameters render() {
         return pagingModel.offset().map(this::renderLimitAndOffset)
                 .orElseGet(this::renderLimitOnly);
     }
 
-    private Optional<FragmentAndParameters> renderLimitOnly() {
-        String mapKey = RenderingStrategy.formatParameterMapKey(sequence);
-        return FragmentAndParameters.withFragment("limit " + renderPlaceholder(mapKey)) //$NON-NLS-1$
-                .withParameter(mapKey, limit)
-                .buildOptional();
+    private FragmentAndParameters renderLimitOnly() {
+        RenderedParameterInfo limitParameterInfo = renderingContext.calculateLimitParameterInfo();
+        return FragmentAndParameters.withFragment("limit " + limitParameterInfo.renderedPlaceHolder()) //$NON-NLS-1$
+                .withParameter(limitParameterInfo.parameterMapKey(), limit)
+                .build();
     }
 
-    private Optional<FragmentAndParameters> renderLimitAndOffset(Long offset) {
-        String mapKey1 = RenderingStrategy.formatParameterMapKey(sequence);
-        String mapKey2 = RenderingStrategy.formatParameterMapKey(sequence);
-        return FragmentAndParameters.withFragment("limit " + renderPlaceholder(mapKey1) //$NON-NLS-1$
-                    + " offset " + renderPlaceholder(mapKey2)) //$NON-NLS-1$
-                .withParameter(mapKey1, limit)
-                .withParameter(mapKey2, offset)
-                .buildOptional();
-    }
-
-    private String renderPlaceholder(String parameterName) {
-        return renderingStrategy.getFormattedJdbcPlaceholder(RenderingStrategy.DEFAULT_PARAMETER_PREFIX,
-                parameterName);
+    private FragmentAndParameters renderLimitAndOffset(Long offset) {
+        RenderedParameterInfo limitParameterInfo = renderingContext.calculateLimitParameterInfo();
+        RenderedParameterInfo offsetParameterInfo = renderingContext.calculateOffsetParameterInfo();
+        return FragmentAndParameters.withFragment("limit " + limitParameterInfo.renderedPlaceHolder() //$NON-NLS-1$
+                    + " offset " + offsetParameterInfo.renderedPlaceHolder()) //$NON-NLS-1$
+                .withParameter(limitParameterInfo.parameterMapKey(), limit)
+                .withParameter(offsetParameterInfo.parameterMapKey(), offset)
+                .build();
     }
 }

@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2021 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,8 @@
  */
 package issues.gh324.spring;
 
-import issues.gh324.NameRecord;
-import issues.gh324.NameTableMapper;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -25,7 +25,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
 
-import java.util.Optional;
+import issues.gh324.NameRecord;
+import issues.gh324.NameTableMapper;
 
 @Service
 public class SpringNameService {
@@ -36,26 +37,26 @@ public class SpringNameService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void insertRecord() {
-        NameRecord record = new NameRecord();
-        record.setId(1);
-        record.setName("Fred");
-        mapper.insert(record);
+        NameRecord row = new NameRecord();
+        row.setId(1);
+        row.setName("Fred");
+        mapper.insert(row);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateRecordAndCommit() {
-        NameRecord record = new NameRecord();
-        record.setId(1);
-        record.setName("Barney");
-        mapper.updateByPrimaryKey(record);
+        NameRecord row = new NameRecord();
+        row.setId(1);
+        row.setName("Barney");
+        mapper.updateByPrimaryKey(row);
     }
 
     public void updateRecordAndRollback() {
         TransactionStatus txStatus = transactionManager.getTransaction(new DefaultTransactionDefinition());
-        NameRecord record = new NameRecord();
-        record.setId(1);
-        record.setName("Barney");
-        mapper.updateByPrimaryKey(record);
+        NameRecord row = new NameRecord();
+        row.setId(1);
+        row.setName("Barney");
+        mapper.updateByPrimaryKey(row);
         transactionManager.rollback(txStatus);
     }
 

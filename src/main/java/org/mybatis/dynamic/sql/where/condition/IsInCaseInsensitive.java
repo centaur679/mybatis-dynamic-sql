@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,59 +20,49 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.mybatis.dynamic.sql.AbstractListValueCondition;
-import org.mybatis.dynamic.sql.Callback;
+import org.mybatis.dynamic.sql.render.RenderingContext;
 import org.mybatis.dynamic.sql.util.StringUtilities;
+import org.mybatis.dynamic.sql.util.Validator;
 
-public class IsInCaseInsensitive extends AbstractListValueCondition<String> {
+public class IsInCaseInsensitive extends AbstractListValueCondition<String>
+        implements CaseInsensitiveVisitableCondition {
     private static final IsInCaseInsensitive EMPTY = new IsInCaseInsensitive(Collections.emptyList());
 
     public static IsInCaseInsensitive empty() {
         return EMPTY;
     }
 
-    private IsInCaseInsensitive emptyWithCallback() {
-        return new IsInCaseInsensitive(Collections.emptyList(), emptyCallback);
-    }
-
-    protected  IsInCaseInsensitive(Collection<String> values) {
+    protected IsInCaseInsensitive(Collection<String> values) {
         super(values);
     }
 
-    protected  IsInCaseInsensitive(Collection<String> values, Callback emptyCallback) {
-        super(values, emptyCallback);
+    @Override
+    public boolean shouldRender(RenderingContext renderingContext) {
+        Validator.assertNotEmpty(values, "ERROR.44", "IsInCaseInsensitive"); //$NON-NLS-1$ //$NON-NLS-2$
+        return true;
     }
 
     @Override
-    public String renderCondition(String columnName, Stream<String> placeholders) {
-        return "upper(" + columnName + ") " //$NON-NLS-1$ //$NON-NLS-2$
-                + placeholders.collect(
-                        Collectors.joining(",", "in (", ")")); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-    }
-
-    @Override
-    public IsInCaseInsensitive withListEmptyCallback(Callback callback) {
-        return new IsInCaseInsensitive(values, callback);
+    public String operator() {
+        return "in"; //$NON-NLS-1$
     }
 
     @Override
     public IsInCaseInsensitive filter(Predicate<? super String> predicate) {
-        return filterSupport(predicate, IsInCaseInsensitive::new, this, this::emptyWithCallback);
+        return filterSupport(predicate, IsInCaseInsensitive::new, this, IsInCaseInsensitive::empty);
     }
 
     /**
-     * If renderable, apply the mapping to each value in the list return a new condition with the mapped values.
-     *     Else return a condition that will not render (this).
+     * If not empty, apply the mapping to each value in the list return a new condition with the mapped values.
+     *     Else return an empty condition (this).
      *
-     * @param mapper a mapping function to apply to the values, if renderable
-     * @return a new condition with mapped values if renderable, otherwise a condition
-     *     that will not render.
+     * @param mapper a mapping function to apply to the values, if not empty
+     * @return a new condition with mapped values if renderable, otherwise an empty condition
      */
     public IsInCaseInsensitive map(UnaryOperator<String> mapper) {
-        return mapSupport(mapper, IsInCaseInsensitive::new, this::emptyWithCallback);
+        return mapSupport(mapper, IsInCaseInsensitive::new, IsInCaseInsensitive::empty);
     }
 
     public static IsInCaseInsensitive of(String... values) {
@@ -80,6 +70,8 @@ public class IsInCaseInsensitive extends AbstractListValueCondition<String> {
     }
 
     public static IsInCaseInsensitive of(Collection<String> values) {
+        // Keep the null safe upper case utility for backwards compatibility
+        //noinspection DataFlowIssue
         return new IsInCaseInsensitive(values).map(StringUtilities::safelyUpperCase);
     }
 }

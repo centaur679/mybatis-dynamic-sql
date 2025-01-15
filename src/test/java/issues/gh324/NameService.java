@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2021 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,12 @@
  */
 package issues.gh324;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.util.Optional;
+
 import org.apache.ibatis.datasource.unpooled.UnpooledDataSource;
 import org.apache.ibatis.jdbc.ScriptRunner;
 import org.apache.ibatis.mapping.Environment;
@@ -23,12 +29,6 @@ import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.session.SqlSessionFactoryBuilder;
 import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
-
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.Optional;
 
 public class NameService {
     private static final String JDBC_URL = "jdbc:hsqldb:mem:aname";
@@ -40,6 +40,7 @@ public class NameService {
         try {
             Class.forName(JDBC_DRIVER);
             InputStream is = getClass().getResourceAsStream("/issues/gh324/CreateDB.sql");
+            assert is != null;
             try (Connection connection = DriverManager.getConnection(JDBC_URL, "sa", "")) {
                 ScriptRunner sr = new ScriptRunner(connection);
                 sr.setLogWriter(null);
@@ -59,20 +60,20 @@ public class NameService {
     public void insertRecord() {
         try (SqlSession session = sqlSessionFactory.openSession(true)) {
             NameTableMapper mapper = session.getMapper(NameTableMapper.class);
-            NameRecord record = new NameRecord();
-            record.setId(1);
-            record.setName("Fred");
-            mapper.insert(record);
+            NameRecord row = new NameRecord();
+            row.setId(1);
+            row.setName("Fred");
+            mapper.insert(row);
         }
     }
 
     public void updateRecordWithAutoCommit() {
         try (SqlSession session = sqlSessionFactory.openSession(true)) {
             NameTableMapper mapper = session.getMapper(NameTableMapper.class);
-            NameRecord record = new NameRecord();
-            record.setId(1);
-            record.setName("Barney");
-            mapper.updateByPrimaryKey(record);
+            NameRecord row = new NameRecord();
+            row.setId(1);
+            row.setName("Barney");
+            mapper.updateByPrimaryKey(row);
         }
     }
 
@@ -80,20 +81,20 @@ public class NameService {
         // this should rollback
         try (SqlSession session = sqlSessionFactory.openSession()) {
             NameTableMapper mapper = session.getMapper(NameTableMapper.class);
-            NameRecord record = new NameRecord();
-            record.setId(1);
-            record.setName("Barney");
-            mapper.updateByPrimaryKey(record);
+            NameRecord row = new NameRecord();
+            row.setId(1);
+            row.setName("Barney");
+            mapper.updateByPrimaryKey(row);
         }
     }
 
     public void updateRecordWithoutAutoCommitAndExplicitCommit() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
             NameTableMapper mapper = session.getMapper(NameTableMapper.class);
-            NameRecord record = new NameRecord();
-            record.setId(1);
-            record.setName("Barney");
-            mapper.updateByPrimaryKey(record);
+            NameRecord row = new NameRecord();
+            row.setId(1);
+            row.setName("Barney");
+            mapper.updateByPrimaryKey(row);
             session.commit();
         }
     }

@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,20 +18,22 @@ package org.mybatis.dynamic.sql.select.function;
 import java.sql.JDBCType;
 import java.util.Optional;
 
-import org.mybatis.dynamic.sql.BindableColumn;
+import org.mybatis.dynamic.sql.BasicColumn;
 
 /**
  * Represents a function that does not change the underlying data type.
  *
  * @author Jeff Butler
  *
- * @param <T> The type of the underlying column
- * @param <U> the specific subtype that implements the function
+ * @param <T>
+ *            The type of the underlying column
+ * @param <U>
+ *            the specific subtype that implements the function
  */
 public abstract class AbstractUniTypeFunction<T, U extends AbstractUniTypeFunction<T, U>>
         extends AbstractTypeConvertingFunction<T, T, U> {
 
-    protected AbstractUniTypeFunction(BindableColumn<T> column) {
+    protected AbstractUniTypeFunction(BasicColumn column) {
         super(column);
     }
 

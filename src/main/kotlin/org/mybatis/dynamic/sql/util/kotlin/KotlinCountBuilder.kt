@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,7 +35,5 @@ class KotlinCountBuilder(private val fromGatherer: CountDSL.FromGatherer<SelectM
 
     override fun build(): SelectModel = getDsl().build()
 
-    override fun getDsl(): CountDSL<SelectModel> =
-        dsl?: throw KInvalidSQLException(
-            "You must specify a \"from\" clause before any other clauses in a count statement")
+    override fun getDsl(): CountDSL<SelectModel> = invalidIfNull(dsl, "ERROR.24") //$NON-NLS-1$
 }

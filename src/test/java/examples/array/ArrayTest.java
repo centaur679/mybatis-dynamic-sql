@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,12 @@ package examples.array;
 import static examples.array.NamesTableDynamicSqlSupport.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mybatis.dynamic.sql.SqlBuilder.*;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.util.Optional;
 
 import org.apache.ibatis.datasource.unpooled.UnpooledDataSource;
 import org.apache.ibatis.jdbc.ScriptRunner;
@@ -33,12 +39,6 @@ import org.mybatis.dynamic.sql.insert.render.GeneralInsertStatementProvider;
 import org.mybatis.dynamic.sql.render.RenderingStrategies;
 import org.mybatis.dynamic.sql.select.render.SelectStatementProvider;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.Optional;
-
 class ArrayTest {
     private static final String JDBC_URL = "jdbc:hsqldb:mem:aname";
     private static final String JDBC_DRIVER = "org.hsqldb.jdbcDriver";
@@ -49,6 +49,7 @@ class ArrayTest {
     void setup() throws Exception {
         Class.forName(JDBC_DRIVER);
         InputStream is = getClass().getResourceAsStream("/examples/array/CreateDB.sql");
+        assert is != null;
         try (Connection connection = DriverManager.getConnection(JDBC_URL, "sa", "")) {
             ScriptRunner sr = new ScriptRunner(connection);
             sr.setLogWriter(null);
@@ -83,8 +84,8 @@ class ArrayTest {
                     .build()
                     .render(RenderingStrategies.MYBATIS3);
 
-            Optional<NamesRecord> record = mapper.selectOne(selectStatement);
-            assertThat(record).hasValueSatisfying( r -> {
+            Optional<NamesRecord> row = mapper.selectOne(selectStatement);
+            assertThat(row).hasValueSatisfying( r -> {
                 assertThat(r.getId()).isEqualTo(1);
                 assertThat(r.getNames()).isEqualTo(someNames);
             });
@@ -112,8 +113,8 @@ class ArrayTest {
                     .build()
                     .render(RenderingStrategies.MYBATIS3);
 
-            Optional<NamesRecord> record = mapper.selectOne(selectStatement);
-            assertThat(record).hasValueSatisfying( r -> {
+            Optional<NamesRecord> row = mapper.selectOne(selectStatement);
+            assertThat(row).hasValueSatisfying( r -> {
                 assertThat(r.getId()).isEqualTo(1);
                 assertThat(r.getNames()).isEqualTo(someNames);
             });

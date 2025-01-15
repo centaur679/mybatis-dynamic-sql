@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,10 +18,12 @@ package examples.springbatch.cursor;
 import static examples.springbatch.mapper.PersonDynamicSqlSupport.lastName;
 import static examples.springbatch.mapper.PersonDynamicSqlSupport.person;
 import static org.mybatis.dynamic.sql.SqlBuilder.isEqualTo;
+import static org.mybatis.dynamic.sql.SqlBuilder.select;
 
 import javax.sql.DataSource;
 
 import org.apache.ibatis.session.SqlSessionFactory;
+import org.mybatis.dynamic.sql.render.RenderingStrategies;
 import org.mybatis.dynamic.sql.select.render.SelectStatementProvider;
 import org.mybatis.dynamic.sql.update.render.UpdateStatementProvider;
 import org.mybatis.dynamic.sql.util.springbatch.SpringBatchUtility;
@@ -32,9 +34,10 @@ import org.mybatis.spring.batch.MyBatisCursorItemReader;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
@@ -58,10 +61,10 @@ import examples.springbatch.mapper.PersonMapper;
 public class CursorReaderBatchConfiguration {
 
     @Autowired
-    private JobBuilderFactory jobBuilderFactory;
+    private JobRepository jobRepository;
 
     @Autowired
-    private StepBuilderFactory stepBuilderFactory;
+    private PlatformTransactionManager transactionManager;
 
     @Bean
     public DataSource dataSource() {
@@ -88,11 +91,11 @@ public class CursorReaderBatchConfiguration {
 
     @Bean
     public MyBatisCursorItemReader<PersonRecord> reader(SqlSessionFactory sqlSessionFactory) {
-        SelectStatementProvider selectStatement =  SpringBatchUtility.selectForCursor(person.allColumns())
+        SelectStatementProvider selectStatement =  select(person.allColumns())
                 .from(person)
                 .where(lastName, isEqualTo("flintstone"))
                 .build()
-                .render();
+                .render(RenderingStrategies.MYBATIS3);
 
         MyBatisCursorItemReader<PersonRecord> reader = new MyBatisCursorItemReader<>();
         reader.setQueryId(PersonMapper.class.getName() + ".selectMany");
@@ -113,8 +116,8 @@ public class CursorReaderBatchConfiguration {
 
     @Bean
     public Step step1(ItemReader<PersonRecord> reader, ItemProcessor<PersonRecord, PersonRecord> processor, ItemWriter<PersonRecord> writer) {
-        return stepBuilderFactory.get("step1")
-                .<PersonRecord, PersonRecord>chunk(10)
+        return new StepBuilder("step1", jobRepository)
+                .<PersonRecord, PersonRecord>chunk(10, transactionManager)
                 .reader(reader)
                 .processor(processor)
                 .writer(writer)
@@ -123,7 +126,7 @@ public class CursorReaderBatchConfiguration {
 
     @Bean
     public Job upperCaseLastName(Step step1) {
-        return jobBuilderFactory.get("upperCaseLastName")
+        return new JobBuilder("upperCaseLastName", jobRepository) // In Spring Batch 5, move this to the job builder constructor
                 .incrementer(new RunIdIncrementer())
                 .flow(step1)
                 .end()

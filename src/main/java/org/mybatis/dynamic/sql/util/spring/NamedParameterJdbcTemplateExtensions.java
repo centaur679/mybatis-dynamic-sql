@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2021 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,13 +35,12 @@ import org.mybatis.dynamic.sql.select.render.SelectStatementProvider;
 import org.mybatis.dynamic.sql.update.UpdateModel;
 import org.mybatis.dynamic.sql.update.render.UpdateStatementProvider;
 import org.mybatis.dynamic.sql.util.Buildable;
+import org.mybatis.dynamic.sql.util.Utilities;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-import org.springframework.jdbc.core.namedparam.SqlParameterSourceUtils;
 import org.springframework.jdbc.support.KeyHolder;
 
 public class NamedParameterJdbcTemplateExtensions {
@@ -56,7 +55,10 @@ public class NamedParameterJdbcTemplateExtensions {
     }
 
     public long count(SelectStatementProvider countStatement) {
-        return template.queryForObject(countStatement.getSelectStatement(), countStatement.getParameters(), Long.class);
+        Long answer = template.queryForObject(countStatement.getSelectStatement(),
+                countStatement.getParameters(), Long.class);
+
+        return Utilities.safelyUnbox(answer);
     }
 
     public int delete(Buildable<DeleteModel> deleteStatement) {
@@ -90,7 +92,7 @@ public class NamedParameterJdbcTemplateExtensions {
 
     public <T> int insert(InsertStatementProvider<T> insertStatement) {
         return template.update(insertStatement.getInsertStatement(),
-                new BeanPropertySqlParameterSource(insertStatement.getRow()));
+                new BeanPropertySqlParameterSource(insertStatement));
     }
 
     public <T> int insert(Buildable<InsertModel<T>> insertStatement, KeyHolder keyHolder) {
@@ -99,7 +101,7 @@ public class NamedParameterJdbcTemplateExtensions {
 
     public <T> int insert(InsertStatementProvider<T> insertStatement, KeyHolder keyHolder) {
         return template.update(insertStatement.getInsertStatement(),
-                new BeanPropertySqlParameterSource(insertStatement.getRow()), keyHolder);
+                new BeanPropertySqlParameterSource(insertStatement), keyHolder);
     }
 
     public <T> int[] insertBatch(Buildable<BatchInsertModel<T>> insertStatement) {
@@ -107,8 +109,8 @@ public class NamedParameterJdbcTemplateExtensions {
     }
 
     public <T> int[] insertBatch(BatchInsert<T> insertStatement) {
-        SqlParameterSource[] batch = SqlParameterSourceUtils.createBatch(insertStatement.getRecords());
-        return template.batchUpdate(insertStatement.getInsertStatementSQL(), batch);
+        return template.batchUpdate(insertStatement.getInsertStatementSQL(),
+                BatchInsertUtility.createBatch(insertStatement.getRecords()));
     }
 
     public <T> int insertMultiple(Buildable<MultiRowInsertModel<T>> insertStatement) {

@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,87 +15,40 @@
  */
 package org.mybatis.dynamic.sql.where.render;
 
-import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
-import org.mybatis.dynamic.sql.SqlCriterion;
-import org.mybatis.dynamic.sql.render.RenderingStrategy;
-import org.mybatis.dynamic.sql.render.TableAliasCalculator;
-import org.mybatis.dynamic.sql.util.FragmentCollector;
-import org.mybatis.dynamic.sql.where.WhereModel;
+import org.mybatis.dynamic.sql.common.AbstractBooleanExpressionModel;
+import org.mybatis.dynamic.sql.common.AbstractBooleanExpressionRenderer;
+import org.mybatis.dynamic.sql.exception.NonRenderingWhereClauseException;
+import org.mybatis.dynamic.sql.util.FragmentAndParameters;
 
-public class WhereRenderer {
-    private final WhereModel whereModel;
-    private final CriterionRenderer criterionRenderer;
-
+public class WhereRenderer extends AbstractBooleanExpressionRenderer {
     private WhereRenderer(Builder builder) {
-        whereModel = Objects.requireNonNull(builder.whereModel);
-
-        criterionRenderer = new CriterionRenderer.Builder()
-                .withSequence(builder.sequence)
-                .withRenderingStrategy(builder.renderingStrategy)
-                .withTableAliasCalculator(builder.tableAliasCalculator)
-                .withParameterName(builder.parameterName)
-                .build();
+        super("where", builder); //$NON-NLS-1$
     }
 
-    public Optional<WhereClauseProvider> render() {
-        return whereModel.initialCriterion().map(this::renderWithInitialCriterion)
-                .orElseGet(this::renderWithoutInitialCriterion)
-                .map(rc -> WhereClauseProvider.withWhereClause(rc.fragmentAndParameters().fragment())
-                        .withParameters(rc.fragmentAndParameters().parameters())
-                        .build()
-                );
+    @Override
+    public Optional<FragmentAndParameters> render() {
+        Optional<FragmentAndParameters> whereClause = super.render();
+
+        if (whereClause.isPresent() || renderingContext.isNonRenderingClauseAllowed()) {
+            return whereClause;
+        } else {
+            throw new NonRenderingWhereClauseException();
+        }
     }
 
-    private Optional<RenderedCriterion> renderWithInitialCriterion(SqlCriterion initialCriterion) {
-        return criterionRenderer.render(initialCriterion, whereModel.subCriteria(), this::calculateWhereClause);
+    public static Builder withWhereModel(AbstractBooleanExpressionModel whereModel) {
+        return new Builder(whereModel);
     }
 
-    private Optional<RenderedCriterion> renderWithoutInitialCriterion() {
-        return criterionRenderer.render(whereModel.subCriteria(), this::calculateWhereClause);
-    }
-
-    private String calculateWhereClause(FragmentCollector collector) {
-        return collector.fragments()
-                .collect(Collectors.joining(" ", "where ", "")); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-    }
-
-    public static Builder withWhereModel(WhereModel whereModel) {
-        return new Builder().withWhereModel(whereModel);
-    }
-
-    public static class Builder {
-        private WhereModel whereModel;
-        private RenderingStrategy renderingStrategy;
-        private TableAliasCalculator tableAliasCalculator;
-        private AtomicInteger sequence;
-        private String parameterName;
-
-        public Builder withWhereModel(WhereModel whereModel) {
-            this.whereModel = whereModel;
-            return this;
+    public static class Builder extends AbstractBuilder<Builder> {
+        public Builder(AbstractBooleanExpressionModel whereModel) {
+            super(whereModel);
         }
 
-        public Builder withRenderingStrategy(RenderingStrategy renderingStrategy) {
-            this.renderingStrategy = renderingStrategy;
-            return this;
-        }
-
-        public Builder withTableAliasCalculator(TableAliasCalculator tableAliasCalculator) {
-            this.tableAliasCalculator = tableAliasCalculator;
-            return this;
-        }
-
-        public Builder withSequence(AtomicInteger sequence) {
-            this.sequence = sequence;
-            return this;
-        }
-
-        public Builder withParameterName(String parameterName) {
-            this.parameterName = parameterName;
+        @Override
+        protected Builder getThis() {
             return this;
         }
 

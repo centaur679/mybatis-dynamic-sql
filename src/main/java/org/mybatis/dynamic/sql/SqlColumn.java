@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2021 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,36 +18,36 @@ package org.mybatis.dynamic.sql;
 import java.sql.JDBCType;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.BiFunction;
 
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
+import org.mybatis.dynamic.sql.render.RenderingContext;
 import org.mybatis.dynamic.sql.render.RenderingStrategy;
-import org.mybatis.dynamic.sql.render.TableAliasCalculator;
+import org.mybatis.dynamic.sql.util.FragmentAndParameters;
 import org.mybatis.dynamic.sql.util.StringUtilities;
 
 public class SqlColumn<T> implements BindableColumn<T>, SortSpecification {
 
     protected final String name;
     protected final SqlTable table;
-    protected final JDBCType jdbcType;
-    protected final boolean isDescending;
-    protected final String alias;
-    protected final String typeHandler;
-    protected final RenderingStrategy renderingStrategy;
+    protected final @Nullable JDBCType jdbcType;
+    protected final String descendingPhrase;
+    protected final @Nullable String alias;
+    protected final @Nullable String typeHandler;
+    protected final @Nullable RenderingStrategy renderingStrategy;
     protected final ParameterTypeConverter<T, ?> parameterTypeConverter;
-    protected final BiFunction<TableAliasCalculator, SqlTable, Optional<String>> tableQualifierFunction;
-    protected final Class<T> javaType;
+    protected final @Nullable String tableQualifier;
+    protected final @Nullable Class<T> javaType;
 
     private SqlColumn(Builder<T> builder) {
         name = Objects.requireNonNull(builder.name);
         table = Objects.requireNonNull(builder.table);
         jdbcType = builder.jdbcType;
-        isDescending = builder.isDescending;
+        descendingPhrase = builder.descendingPhrase;
         alias = builder.alias;
         typeHandler = builder.typeHandler;
         renderingStrategy = builder.renderingStrategy;
-        parameterTypeConverter = builder.parameterTypeConverter;
-        tableQualifierFunction = Objects.requireNonNull(builder.tableQualifierFunction);
+        parameterTypeConverter = Objects.requireNonNull(builder.parameterTypeConverter);
+        tableQualifier = builder.tableQualifier;
         javaType = builder.javaType;
     }
 
@@ -80,14 +80,14 @@ public class SqlColumn<T> implements BindableColumn<T>, SortSpecification {
     }
 
     @Override
-    public Object convertParameterType(T value) {
-        return parameterTypeConverter == null ? value : parameterTypeConverter.convert(value);
+    public @Nullable Object convertParameterType(@Nullable T value) {
+        return value == null ? null : parameterTypeConverter.convert(value);
     }
 
     @Override
     public SortSpecification descending() {
         Builder<T> b = copy();
-        return b.withDescending(true).build();
+        return b.withDescendingPhrase(" DESC").build(); //$NON-NLS-1$
     }
 
     @Override
@@ -105,17 +105,17 @@ public class SqlColumn<T> implements BindableColumn<T>, SortSpecification {
      */
     public SqlColumn<T> qualifiedWith(String tableQualifier) {
         Builder<T> b = copy();
-        b.withTableQualifierFunction((tac, t) -> Optional.of(tableQualifier));
+        b.withTableQualifier(tableQualifier);
         return b.build();
     }
 
     /**
-     * Set an alias with a camel cased string based on the column name. The can be useful for queries using
+     * Set an alias with a camel cased string based on the column name. This can be useful for queries using
      * the {@link org.mybatis.dynamic.sql.util.mybatis3.CommonSelectMapper} where the columns are placed into
      * a map based on the column name returned from the database.
      *
      * <p>A camel case string is mixed case, and most databases do not support unquoted mixed case strings
-     * as identifiers. Therefore the generated alias will be surrounded by double quotes thereby making it a
+     * as identifiers. Therefore, the generated alias will be surrounded by double quotes thereby making it a
      * quoted identifier. Most databases will respect quoted mixed case identifiers.
      *
      * @return a new column aliased with a camel case version of the column name
@@ -126,20 +126,17 @@ public class SqlColumn<T> implements BindableColumn<T>, SortSpecification {
     }
 
     @Override
-    public boolean isDescending() {
-        return isDescending;
+    public FragmentAndParameters renderForOrderBy(RenderingContext renderingContext) {
+        return FragmentAndParameters.fromFragment(alias().orElse(name) + descendingPhrase);
     }
 
     @Override
-    public String orderByName() {
-        return alias().orElse(name);
-    }
-
-    @Override
-    public String renderWithTableAlias(TableAliasCalculator tableAliasCalculator) {
-        return tableQualifierFunction.apply(tableAliasCalculator, table)
-                .map(this::applyTableAlias)
-                .orElseGet(this::name);
+    public FragmentAndParameters render(RenderingContext renderingContext) {
+        if (tableQualifier == null) {
+            return FragmentAndParameters.fromFragment(renderingContext.aliasedColumnName(this));
+        } else {
+            return FragmentAndParameters.fromFragment(renderingContext.aliasedColumnName(this, tableQualifier));
+        }
     }
 
     @Override
@@ -147,25 +144,21 @@ public class SqlColumn<T> implements BindableColumn<T>, SortSpecification {
         return Optional.ofNullable(renderingStrategy);
     }
 
-    @NotNull
     public <S> SqlColumn<S> withTypeHandler(String typeHandler) {
         Builder<S> b = copy();
         return b.withTypeHandler(typeHandler).build();
     }
 
-    @NotNull
     public <S> SqlColumn<S> withRenderingStrategy(RenderingStrategy renderingStrategy) {
         Builder<S> b = copy();
         return b.withRenderingStrategy(renderingStrategy).build();
     }
 
-    @NotNull
     public <S> SqlColumn<S> withParameterTypeConverter(ParameterTypeConverter<S, ?> parameterTypeConverter) {
         Builder<S> b = copy();
         return b.withParameterTypeConverter(parameterTypeConverter).build();
     }
 
-    @NotNull
     public <S> SqlColumn<S> withJavaType(Class<S> javaType) {
         Builder<S> b = copy();
         return b.withJavaType(javaType).build();
@@ -186,17 +179,13 @@ public class SqlColumn<T> implements BindableColumn<T>, SortSpecification {
                 .withName(this.name)
                 .withTable(this.table)
                 .withJdbcType(this.jdbcType)
-                .withDescending(this.isDescending)
+                .withDescendingPhrase(this.descendingPhrase)
                 .withAlias(this.alias)
                 .withTypeHandler(this.typeHandler)
                 .withRenderingStrategy(this.renderingStrategy)
                 .withParameterTypeConverter((ParameterTypeConverter<S, ?>) this.parameterTypeConverter)
-                .withTableQualifierFunction(this.tableQualifierFunction)
+                .withTableQualifier(this.tableQualifier)
                 .withJavaType((Class<S>) this.javaType);
-    }
-
-    private String applyTableAlias(String tableAlias) {
-        return tableAlias + "." + name(); //$NON-NLS-1$
     }
 
     public static <T> SqlColumn<T> of(String name, SqlTable table) {
@@ -213,17 +202,16 @@ public class SqlColumn<T> implements BindableColumn<T>, SortSpecification {
     }
 
     public static class Builder<T> {
-        protected String name;
-        protected SqlTable table;
-        protected JDBCType jdbcType;
-        protected boolean isDescending = false;
-        protected String alias;
-        protected String typeHandler;
-        protected RenderingStrategy renderingStrategy;
-        protected ParameterTypeConverter<T, ?> parameterTypeConverter;
-        protected BiFunction<TableAliasCalculator, SqlTable, Optional<String>> tableQualifierFunction =
-                TableAliasCalculator::aliasForColumn;
-        protected Class<T> javaType;
+        protected @Nullable String name;
+        protected @Nullable SqlTable table;
+        protected @Nullable JDBCType jdbcType;
+        protected String descendingPhrase = ""; //$NON-NLS-1$
+        protected @Nullable String alias;
+        protected @Nullable String typeHandler;
+        protected @Nullable RenderingStrategy renderingStrategy;
+        protected ParameterTypeConverter<T, ?> parameterTypeConverter = v -> v;
+        protected @Nullable String tableQualifier;
+        protected @Nullable Class<T> javaType;
 
         public Builder<T> withName(String name) {
             this.name = name;
@@ -235,27 +223,27 @@ public class SqlColumn<T> implements BindableColumn<T>, SortSpecification {
             return this;
         }
 
-        public Builder<T> withJdbcType(JDBCType jdbcType) {
+        public Builder<T> withJdbcType(@Nullable JDBCType jdbcType) {
             this.jdbcType = jdbcType;
             return this;
         }
 
-        public Builder<T> withDescending(boolean isDescending) {
-            this.isDescending = isDescending;
+        public Builder<T> withDescendingPhrase(String descendingPhrase) {
+            this.descendingPhrase = descendingPhrase;
             return this;
         }
 
-        public Builder<T> withAlias(String alias) {
+        public Builder<T> withAlias(@Nullable String alias) {
             this.alias = alias;
             return this;
         }
 
-        public Builder<T> withTypeHandler(String typeHandler) {
+        public Builder<T> withTypeHandler(@Nullable String typeHandler) {
             this.typeHandler = typeHandler;
             return this;
         }
 
-        public Builder<T> withRenderingStrategy(RenderingStrategy renderingStrategy) {
+        public Builder<T> withRenderingStrategy(@Nullable RenderingStrategy renderingStrategy) {
             this.renderingStrategy = renderingStrategy;
             return this;
         }
@@ -265,13 +253,12 @@ public class SqlColumn<T> implements BindableColumn<T>, SortSpecification {
             return this;
         }
 
-        private Builder<T> withTableQualifierFunction(
-                BiFunction<TableAliasCalculator, SqlTable, Optional<String>> tableQualifierFunction) {
-            this.tableQualifierFunction = tableQualifierFunction;
+        private Builder<T> withTableQualifier(@Nullable String tableQualifier) {
+            this.tableQualifier = tableQualifier;
             return this;
         }
 
-        public Builder<T> withJavaType(Class<T> javaType) {
+        public Builder<T> withJavaType(@Nullable Class<T> javaType) {
             this.javaType = javaType;
             return this;
         }

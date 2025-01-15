@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 import org.mybatis.dynamic.sql.SqlColumn;
 import org.mybatis.dynamic.sql.SqlTable;
 import org.mybatis.dynamic.sql.util.AbstractColumnMapping;
@@ -29,6 +29,7 @@ import org.mybatis.dynamic.sql.util.Buildable;
 import org.mybatis.dynamic.sql.util.ConstantMapping;
 import org.mybatis.dynamic.sql.util.NullMapping;
 import org.mybatis.dynamic.sql.util.PropertyMapping;
+import org.mybatis.dynamic.sql.util.RowMapping;
 import org.mybatis.dynamic.sql.util.StringConstantMapping;
 
 public class BatchInsertDSL<T> implements Buildable<BatchInsertModel<T>> {
@@ -47,7 +48,6 @@ public class BatchInsertDSL<T> implements Buildable<BatchInsertModel<T>> {
         return new ColumnMappingFinisher<>(column);
     }
 
-    @NotNull
     @Override
     public BatchInsertModel<T> build() {
         return BatchInsertModel.withRecords(records)
@@ -57,11 +57,11 @@ public class BatchInsertDSL<T> implements Buildable<BatchInsertModel<T>> {
     }
 
     @SafeVarargs
-    public static <T> IntoGatherer<T> insert(T...records) {
-        return BatchInsertDSL.insert(Arrays.asList(records));
+    public static <T> BatchInsertDSL.IntoGatherer<T> insert(T... records) {
+        return insert(Arrays.asList(records));
     }
 
-    public static <T> IntoGatherer<T> insert(Collection<T> records) {
+    public static <T> BatchInsertDSL.IntoGatherer<T> insert(Collection<T> records) {
         return new IntoGatherer<>(records);
     }
 
@@ -103,11 +103,16 @@ public class BatchInsertDSL<T> implements Buildable<BatchInsertModel<T>> {
             columnMappings.add(StringConstantMapping.of(column, constant));
             return BatchInsertDSL.this;
         }
+
+        public BatchInsertDSL<T> toRow() {
+            columnMappings.add(RowMapping.of(column));
+            return BatchInsertDSL.this;
+        }
     }
 
     public abstract static class AbstractBuilder<T, B extends AbstractBuilder<T, B>> {
         final Collection<T> records = new ArrayList<>();
-        SqlTable table;
+        @Nullable SqlTable table;
         final List<AbstractColumnMapping> columnMappings = new ArrayList<>();
 
         public B withRecords(Collection<T> records) {
@@ -120,7 +125,7 @@ public class BatchInsertDSL<T> implements Buildable<BatchInsertModel<T>> {
             return getThis();
         }
 
-        public B withColumnMappings(Collection<AbstractColumnMapping> columnMappings) {
+        public B withColumnMappings(Collection<? extends AbstractColumnMapping> columnMappings) {
             this.columnMappings.addAll(columnMappings);
             return getThis();
         }

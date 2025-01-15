@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -51,6 +51,7 @@ class OptionalConditionsAnimalDataTest {
     void setup() throws Exception {
         Class.forName(JDBC_DRIVER);
         InputStream is = getClass().getResourceAsStream("/examples/animal/data/CreateAnimalData.sql");
+        assert is != null;
         try (Connection connection = DriverManager.getConnection(JDBC_URL, "sa", "")) {
             ScriptRunner sr = new ScriptRunner(connection);
             sr.setLogWriter(null);
@@ -72,14 +73,15 @@ class OptionalConditionsAnimalDataTest {
                     .from(animalData)
                     .where(id, isGreaterThanWhenPresent(NULL_INTEGER))  // the where clause should not render
                     .orderBy(id)
+                    .configureStatement(c -> c.setNonRenderingWhereClauseAllowed(true))
                     .build()
                     .render(RenderingStrategies.MYBATIS3);
             List<AnimalData> animals = mapper.selectMany(selectStatement);
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData order by id"),
                     () -> assertThat(animals).hasSize(65),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1),
-                    () -> assertThat(animals.get(1).getId()).isEqualTo(2)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1),
+                    () -> assertThat(animals).element(1).isNotNull().extracting(AnimalData::getId).isEqualTo(2)
             );
         }
     }
@@ -100,8 +102,8 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id = #{parameters.p1,jdbcType=INTEGER} or id = #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(2),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(3),
-                    () -> assertThat(animals.get(1).getId()).isEqualTo(4)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(3),
+                    () -> assertThat(animals).element(1).isNotNull().extracting(AnimalData::getId).isEqualTo(4)
             );
         }
     }
@@ -122,8 +124,8 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id = #{parameters.p1,jdbcType=INTEGER} or id = #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(2),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(3),
-                    () -> assertThat(animals.get(1).getId()).isEqualTo(4)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(3),
+                    () -> assertThat(animals).element(1).isNotNull().extracting(AnimalData::getId).isEqualTo(4)
             );
         }
     }
@@ -145,8 +147,8 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id = #{parameters.p1,jdbcType=INTEGER} or id = #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(2),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(3),
-                    () -> assertThat(animals.get(1).getId()).isEqualTo(4)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(3),
+                    () -> assertThat(animals).element(1).isNotNull().extracting(AnimalData::getId).isEqualTo(4)
             );
         }
     }
@@ -166,8 +168,8 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id = #{parameters.p1,jdbcType=INTEGER} or id = #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(2),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(3),
-                    () -> assertThat(animals.get(1).getId()).isEqualTo(4)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(3),
+                    () -> assertThat(animals).element(1).isNotNull().extracting(AnimalData::getId).isEqualTo(4)
             );
         }
     }
@@ -186,7 +188,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id = #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(1),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(4)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(4)
             );
         }
     }
@@ -206,7 +208,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -226,7 +228,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <> #{parameters.p1,jdbcType=INTEGER} and id <= #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(9),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -246,7 +248,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -266,7 +268,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id > #{parameters.p1,jdbcType=INTEGER} and id <= #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(6),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(5)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(5)
             );
         }
     }
@@ -286,7 +288,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -306,7 +308,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id >= #{parameters.p1,jdbcType=INTEGER} and id <= #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(7),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(4)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(4)
             );
         }
     }
@@ -326,7 +328,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -345,7 +347,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id < #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(3),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -365,7 +367,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -384,7 +386,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(4),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -404,7 +406,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -423,7 +425,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id in (#{parameters.p1,jdbcType=INTEGER},#{parameters.p2,jdbcType=INTEGER},#{parameters.p3,jdbcType=INTEGER}) order by id"),
                     () -> assertThat(animals).hasSize(3),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(4)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(4)
             );
         }
     }
@@ -442,7 +444,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id in (#{parameters.p1,jdbcType=INTEGER},#{parameters.p2,jdbcType=INTEGER}) order by id"),
                     () -> assertThat(animals).hasSize(2),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(3)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(3)
             );
         }
     }
@@ -462,7 +464,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -481,7 +483,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where upper(animal_name) in (#{parameters.p1,jdbcType=VARCHAR},#{parameters.p2,jdbcType=VARCHAR}) order by id"),
                     () -> assertThat(animals).hasSize(2),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(4)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(4)
             );
         }
     }
@@ -500,7 +502,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where upper(animal_name) in (#{parameters.p1,jdbcType=VARCHAR},#{parameters.p2,jdbcType=VARCHAR}) order by id"),
                     () -> assertThat(animals).hasSize(2),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(4)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(4)
             );
         }
     }
@@ -520,7 +522,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -540,7 +542,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id not in (#{parameters.p1,jdbcType=INTEGER},#{parameters.p2,jdbcType=INTEGER},#{parameters.p3,jdbcType=INTEGER}) and id <= #{parameters.p4,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(7),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -560,7 +562,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id not in (#{parameters.p1,jdbcType=INTEGER},#{parameters.p2,jdbcType=INTEGER}) and id <= #{parameters.p3,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(8),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -580,7 +582,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -600,7 +602,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where upper(animal_name) not in (#{parameters.p1,jdbcType=VARCHAR},#{parameters.p2,jdbcType=VARCHAR}) and id <= #{parameters.p3,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(8),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -620,7 +622,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where upper(animal_name) not in (#{parameters.p1,jdbcType=VARCHAR},#{parameters.p2,jdbcType=VARCHAR}) and id <= #{parameters.p3,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(8),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -640,7 +642,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -659,7 +661,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id between #{parameters.p1,jdbcType=INTEGER} and #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(4),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(3)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(3)
             );
         }
     }
@@ -679,7 +681,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -699,7 +701,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -719,7 +721,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -739,7 +741,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id not between #{parameters.p1,jdbcType=INTEGER} and #{parameters.p2,jdbcType=INTEGER} and id <= #{parameters.p3,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(6),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -759,7 +761,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -779,7 +781,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -799,7 +801,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -819,7 +821,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where animal_name like #{parameters.p1,jdbcType=VARCHAR} and id <= #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(2),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(6)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(6)
             );
         }
     }
@@ -839,7 +841,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -859,7 +861,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where upper(animal_name) like #{parameters.p1,jdbcType=VARCHAR} and id <= #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(2),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(6)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(6)
             );
         }
     }
@@ -879,7 +881,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -899,7 +901,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where animal_name not like #{parameters.p1,jdbcType=VARCHAR} and id <= #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(8),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -919,7 +921,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -939,7 +941,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where upper(animal_name) not like #{parameters.p1,jdbcType=VARCHAR} and id <= #{parameters.p2,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(8),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }
@@ -959,7 +961,7 @@ class OptionalConditionsAnimalDataTest {
             assertAll(
                     () -> assertThat(selectStatement.getSelectStatement()).isEqualTo("select id, animal_name, body_weight, brain_weight from AnimalData where id <= #{parameters.p1,jdbcType=INTEGER} order by id"),
                     () -> assertThat(animals).hasSize(10),
-                    () -> assertThat(animals.get(0).getId()).isEqualTo(1)
+                    () -> assertThat(animals).first().isNotNull().extracting(AnimalData::getId).isEqualTo(1)
             );
         }
     }

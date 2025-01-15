@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,18 +18,20 @@ package org.mybatis.dynamic.sql;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.mybatis.dynamic.sql.render.TableAliasCalculator;
+import org.jspecify.annotations.Nullable;
+import org.mybatis.dynamic.sql.render.RenderingContext;
+import org.mybatis.dynamic.sql.util.FragmentAndParameters;
 
 public class Constant<T> implements BindableColumn<T> {
 
-    private final String alias;
+    private final @Nullable String alias;
     private final String value;
 
     private Constant(String value) {
         this(value, null);
     }
 
-    private Constant(String value, String alias) {
+    private Constant(String value, @Nullable String alias) {
         this.value = Objects.requireNonNull(value);
         this.alias = alias;
     }
@@ -40,8 +42,8 @@ public class Constant<T> implements BindableColumn<T> {
     }
 
     @Override
-    public String renderWithTableAlias(TableAliasCalculator tableAliasCalculator) {
-        return value;
+    public FragmentAndParameters render(RenderingContext renderingContext) {
+        return FragmentAndParameters.fromFragment(value);
     }
 
     @Override

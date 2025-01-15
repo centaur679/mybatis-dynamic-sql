@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,29 +15,19 @@
  */
 package org.mybatis.dynamic.sql.util;
 
-import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 public interface StringUtilities {
 
-    static String spaceAfter(Optional<String> in) {
-        return in.map(StringUtilities::spaceAfter)
-                .orElse(""); //$NON-NLS-1$
-    }
-
     static String spaceAfter(String in) {
         return in + " "; //$NON-NLS-1$
-    }
-
-    static String spaceBefore(Optional<String> in) {
-        return in.map(StringUtilities::spaceBefore)
-                .orElse(""); //$NON-NLS-1$
     }
 
     static String spaceBefore(String in) {
         return " " + in; //$NON-NLS-1$
     }
 
-    static String safelyUpperCase(String s) {
+    static @Nullable String safelyUpperCase(@Nullable String s) {
         return s == null ? null : s.toUpperCase();
     }
 
@@ -56,12 +46,18 @@ public interface StringUtilities {
                     sb.append(Character.toLowerCase(c));
                 }
             } else {
-                if (sb.length() > 0) {
+                if (!sb.isEmpty()) {
                     nextUpperCase = true;
                 }
             }
         }
 
         return sb.toString();
+    }
+
+    static String formatConstantForSQL(String in) {
+        String escaped = in.replace("'", "''"); //$NON-NLS-1$ //$NON-NLS-2$
+        return "'" + escaped + "'"; //$NON-NLS-1$ //$NON-NLS-2$
+
     }
 }

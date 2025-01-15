@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,55 +16,45 @@
 package org.mybatis.dynamic.sql.select.render;
 
 import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.mybatis.dynamic.sql.render.RenderingStrategy;
+import org.jspecify.annotations.Nullable;
+import org.mybatis.dynamic.sql.render.RenderingContext;
 import org.mybatis.dynamic.sql.select.PagingModel;
 import org.mybatis.dynamic.sql.util.FragmentAndParameters;
 
 public class PagingModelRenderer {
-    private final RenderingStrategy renderingStrategy;
     private final PagingModel pagingModel;
-    private final AtomicInteger sequence;
+    private final RenderingContext renderingContext;
 
     private PagingModelRenderer(Builder builder) {
-        renderingStrategy = Objects.requireNonNull(builder.renderingStrategy);
+        renderingContext = Objects.requireNonNull(builder.renderingContext);
         pagingModel = Objects.requireNonNull(builder.pagingModel);
-        sequence = Objects.requireNonNull(builder.sequence);
     }
 
-    public Optional<FragmentAndParameters> render() {
+    public FragmentAndParameters render() {
         return pagingModel.limit().map(this::limitAndOffsetRender)
                 .orElseGet(this::fetchFirstRender);
     }
 
-    private Optional<FragmentAndParameters> limitAndOffsetRender(Long limit) {
-        return new LimitAndOffsetPagingModelRenderer(renderingStrategy, limit,
-                pagingModel, sequence).render();
+    private FragmentAndParameters limitAndOffsetRender(Long limit) {
+        return new LimitAndOffsetPagingModelRenderer(renderingContext, limit, pagingModel).render();
     }
 
-    private Optional<FragmentAndParameters> fetchFirstRender() {
-        return new FetchFirstPagingModelRenderer(renderingStrategy, pagingModel, sequence).render();
+    private FragmentAndParameters fetchFirstRender() {
+        return new FetchFirstPagingModelRenderer(renderingContext, pagingModel).render();
     }
 
     public static class Builder {
-        private RenderingStrategy renderingStrategy;
-        private PagingModel pagingModel;
-        private AtomicInteger sequence;
+        private @Nullable PagingModel pagingModel;
+        private @Nullable RenderingContext renderingContext;
 
-        public Builder withRenderingStrategy(RenderingStrategy renderingStrategy) {
-            this.renderingStrategy = renderingStrategy;
+        public Builder withRenderingContext(RenderingContext renderingContext) {
+            this.renderingContext = renderingContext;
             return this;
         }
 
         public Builder withPagingModel(PagingModel pagingModel) {
             this.pagingModel = pagingModel;
-            return this;
-        }
-
-        public Builder withSequence(AtomicInteger sequence) {
-            this.sequence = sequence;
             return this;
         }
 

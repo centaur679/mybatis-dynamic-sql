@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -40,7 +40,7 @@ class FragmentCollectorTest {
 
         fc1.merge(fc2);
 
-        assertThat(fc1.fragments().collect(Collectors.toList())).containsExactly(":p1", ":p2");
+        assertThat(fc1.collectFragments(Collectors.joining(","))).isEqualTo(":p1,:p2");
         assertThat(fc1.parameters()).containsExactly(entry("p1", 1), entry("p2", 2));
     }
 }
