@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,10 +15,14 @@
  */
 package org.mybatis.dynamic.sql.util;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
+
+import org.jspecify.annotations.Nullable;
 
 public class FragmentAndParameters {
 
@@ -27,7 +31,7 @@ public class FragmentAndParameters {
 
     private FragmentAndParameters(Builder builder) {
         fragment = Objects.requireNonNull(builder.fragment);
-        parameters = Objects.requireNonNull(builder.parameters);
+        parameters = Collections.unmodifiableMap(builder.parameters);
     }
 
     public String fragment() {
@@ -38,16 +42,15 @@ public class FragmentAndParameters {
         return parameters;
     }
 
-    public FragmentAndParameters add(String newFragment) {
-        return withFragment(fragment + newFragment)
+    /**
+     * Return a new instance with the same parameters and a transformed fragment.
+     *
+     * @param mapper a function that can change the value of the fragment
+     * @return a new instance with the same parameters and a transformed fragment
+     */
+    public FragmentAndParameters mapFragment(UnaryOperator<String> mapper) {
+        return withFragment(mapper.apply(fragment))
                 .withParameters(parameters)
-                .build();
-    }
-
-    public FragmentAndParameters add(String newFragment, Map<String, Object> newParameters) {
-        return withFragment(fragment + newFragment)
-                .withParameters(parameters)
-                .withParameters(newParameters)
                 .build();
     }
 
@@ -55,8 +58,12 @@ public class FragmentAndParameters {
         return new Builder().withFragment(fragment);
     }
 
+    public static FragmentAndParameters fromFragment(String fragment) {
+        return new Builder().withFragment(fragment).build();
+    }
+
     public static class Builder {
-        private String fragment;
+        private @Nullable String fragment;
         private final Map<String, Object> parameters = new HashMap<>();
 
         public Builder withFragment(String fragment) {
@@ -64,7 +71,10 @@ public class FragmentAndParameters {
             return this;
         }
 
-        public Builder withParameter(String key, Object value) {
+        public Builder withParameter(String key, @Nullable Object value) {
+            // the value can be null because a parameter type converter may return null
+
+            //noinspection DataFlowIssue
             parameters.put(key, value);
             return this;
         }

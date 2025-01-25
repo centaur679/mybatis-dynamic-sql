@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,23 +18,26 @@ package org.mybatis.dynamic.sql.select;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.mybatis.dynamic.sql.BasicColumn;
+import org.mybatis.dynamic.sql.util.Validator;
 
 public class GroupByModel {
     private final List<BasicColumn> columns = new ArrayList<>();
 
-    private GroupByModel(Collection<BasicColumn> columns) {
+    private GroupByModel(Collection<? extends BasicColumn> columns) {
+        Objects.requireNonNull(columns);
+        Validator.assertNotEmpty(columns, "ERROR.11"); //$NON-NLS-1$
         this.columns.addAll(columns);
     }
 
-    public <R> Stream<R> mapColumns(Function<BasicColumn, R> mapper) {
-        return columns.stream().map(mapper);
+    public Stream<BasicColumn> columns() {
+        return columns.stream();
     }
 
-    public static GroupByModel of(Collection<BasicColumn> columns) {
+    public static GroupByModel of(Collection<? extends BasicColumn> columns) {
         return new GroupByModel(columns);
     }
 }

@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,6 +14,18 @@
  *    limitations under the License.
  */
 package examples.joins;
+
+import static examples.joins.ItemMasterDynamicSQLSupport.itemMaster;
+import static examples.joins.OrderLineDynamicSQLSupport.orderLine;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mybatis.dynamic.sql.SqlBuilder.*;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.ibatis.datasource.unpooled.UnpooledDataSource;
 import org.apache.ibatis.jdbc.ScriptRunner;
@@ -33,18 +45,6 @@ import org.mybatis.dynamic.sql.util.mybatis3.CommonDeleteMapper;
 import org.mybatis.dynamic.sql.util.mybatis3.CommonSelectMapper;
 import org.mybatis.dynamic.sql.util.mybatis3.CommonUpdateMapper;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.List;
-import java.util.Map;
-
-import static examples.joins.ItemMasterDynamicSQLSupport.itemMaster;
-import static examples.joins.OrderLineDynamicSQLSupport.orderLine;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mybatis.dynamic.sql.SqlBuilder.*;
-
 class ExistsTest {
 
     private static final String JDBC_URL = "jdbc:hsqldb:mem:aname";
@@ -56,6 +56,7 @@ class ExistsTest {
     void setup() throws Exception {
         Class.forName(JDBC_DRIVER);
         InputStream is = getClass().getResourceAsStream("/examples/joins/CreateJoinDB.sql");
+        assert is != null;
         try (Connection connection = DriverManager.getConnection(JDBC_URL, "sa", "")) {
             ScriptRunner sr = new ScriptRunner(connection);
             sr.setLogWriter(null);
@@ -333,8 +334,8 @@ class ExistsTest {
                     .render(RenderingStrategies.MYBATIS3);
 
             String expectedStatement = "select im.* from ItemMaster im"
-                    + " where (exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)"
-                    + " or im.item_id = #{parameters.p1,jdbcType=INTEGER})"
+                    + " where exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)"
+                    + " or im.item_id = #{parameters.p1,jdbcType=INTEGER}"
                     + " order by item_id";
             assertThat(selectStatement.getSelectStatement()).isEqualTo(expectedStatement);
 
@@ -372,8 +373,8 @@ class ExistsTest {
                     .render(RenderingStrategies.MYBATIS3);
 
             String expectedStatement = "select im.* from ItemMaster im"
-                    + " where (exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)"
-                    + " and im.item_id = #{parameters.p1,jdbcType=INTEGER})"
+                    + " where exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)"
+                    + " and im.item_id = #{parameters.p1,jdbcType=INTEGER}"
                     + " order by item_id";
             assertThat(selectStatement.getSelectStatement()).isEqualTo(expectedStatement);
 

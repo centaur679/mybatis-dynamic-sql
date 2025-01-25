@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,73 +15,88 @@
  */
 package org.mybatis.dynamic.sql.delete.render;
 
-import static org.mybatis.dynamic.sql.util.StringUtilities.spaceBefore;
-
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
-import org.mybatis.dynamic.sql.SqlTable;
+import org.jspecify.annotations.Nullable;
+import org.mybatis.dynamic.sql.common.OrderByModel;
+import org.mybatis.dynamic.sql.common.OrderByRenderer;
 import org.mybatis.dynamic.sql.delete.DeleteModel;
 import org.mybatis.dynamic.sql.render.ExplicitTableAliasCalculator;
+import org.mybatis.dynamic.sql.render.RenderedParameterInfo;
+import org.mybatis.dynamic.sql.render.RenderingContext;
 import org.mybatis.dynamic.sql.render.RenderingStrategy;
 import org.mybatis.dynamic.sql.render.TableAliasCalculator;
-import org.mybatis.dynamic.sql.where.WhereModel;
-import org.mybatis.dynamic.sql.where.render.WhereClauseProvider;
-import org.mybatis.dynamic.sql.where.render.WhereRenderer;
+import org.mybatis.dynamic.sql.util.FragmentAndParameters;
+import org.mybatis.dynamic.sql.util.FragmentCollector;
+import org.mybatis.dynamic.sql.where.EmbeddedWhereModel;
 
 public class DeleteRenderer {
     private final DeleteModel deleteModel;
-    private final RenderingStrategy renderingStrategy;
-    private final TableAliasCalculator tableAliasCalculator;
+    private final RenderingContext renderingContext;
 
     private DeleteRenderer(Builder builder) {
         deleteModel = Objects.requireNonNull(builder.deleteModel);
-        renderingStrategy = Objects.requireNonNull(builder.renderingStrategy);
-        tableAliasCalculator = builder.deleteModel.tableAlias()
+        TableAliasCalculator tableAliasCalculator = builder.deleteModel.tableAlias()
                 .map(a -> ExplicitTableAliasCalculator.of(deleteModel.table(), a))
                 .orElseGet(TableAliasCalculator::empty);
+        renderingContext = RenderingContext
+                .withRenderingStrategy(Objects.requireNonNull(builder.renderingStrategy))
+                .withTableAliasCalculator(tableAliasCalculator)
+                .withStatementConfiguration(deleteModel.statementConfiguration())
+                .build();
     }
 
     public DeleteStatementProvider render() {
-        return deleteModel.whereModel()
-                .flatMap(this::renderWhereClause)
-                .map(this::renderWithWhereClause)
-                .orElseGet(this::renderWithoutWhereClause);
+        FragmentCollector fragmentCollector = new FragmentCollector();
+
+        fragmentCollector.add(calculateDeleteStatementStart());
+        calculateWhereClause().ifPresent(fragmentCollector::add);
+        calculateOrderByClause().ifPresent(fragmentCollector::add);
+        calculateLimitClause().ifPresent(fragmentCollector::add);
+
+        return toDeleteStatementProvider(fragmentCollector);
     }
 
-    private DeleteStatementProvider renderWithWhereClause(WhereClauseProvider whereClauseProvider) {
-        return DefaultDeleteStatementProvider.withDeleteStatement(calculateDeleteStatement(whereClauseProvider))
-                .withParameters(whereClauseProvider.getParameters())
+    private DeleteStatementProvider toDeleteStatementProvider(FragmentCollector fragmentCollector) {
+        return DefaultDeleteStatementProvider
+                .withDeleteStatement(fragmentCollector.collectFragments(Collectors.joining(" "))) //$NON-NLS-1$
+                .withParameters(fragmentCollector.parameters())
                 .build();
     }
 
-    private String calculateDeleteStatement(WhereClauseProvider whereClause) {
-        return calculateDeleteStatement()
-                + spaceBefore(whereClause.getWhereClause());
+    private FragmentAndParameters calculateDeleteStatementStart() {
+        String aliasedTableName = renderingContext.aliasedTableName(deleteModel.table());
+        return FragmentAndParameters.fromFragment("delete from " + aliasedTableName); //$NON-NLS-1$
     }
 
-    private String calculateDeleteStatement() {
-        SqlTable table = deleteModel.table();
-        String tableName = table.tableNameAtRuntime();
-        String aliasedTableName = tableAliasCalculator.aliasForTable(table)
-                .map(a -> tableName + " " + a).orElse(tableName); //$NON-NLS-1$
-
-        return "delete from" + spaceBefore(aliasedTableName); //$NON-NLS-1$
+    private Optional<FragmentAndParameters> calculateWhereClause() {
+        return deleteModel.whereModel().flatMap(this::renderWhereClause);
     }
 
-    private DeleteStatementProvider renderWithoutWhereClause() {
-        return DefaultDeleteStatementProvider.withDeleteStatement(calculateDeleteStatement())
+    private Optional<FragmentAndParameters> renderWhereClause(EmbeddedWhereModel whereModel) {
+        return whereModel.render(renderingContext);
+    }
+
+    private Optional<FragmentAndParameters> calculateLimitClause() {
+        return deleteModel.limit().map(this::renderLimitClause);
+    }
+
+    private FragmentAndParameters renderLimitClause(Long limit) {
+        RenderedParameterInfo parameterInfo = renderingContext.calculateLimitParameterInfo();
+
+        return FragmentAndParameters.withFragment("limit " + parameterInfo.renderedPlaceHolder()) //$NON-NLS-1$
+                .withParameter(parameterInfo.parameterMapKey(), limit)
                 .build();
     }
 
-    private Optional<WhereClauseProvider> renderWhereClause(WhereModel whereModel) {
-        return WhereRenderer.withWhereModel(whereModel)
-                .withRenderingStrategy(renderingStrategy)
-                .withSequence(new AtomicInteger(1))
-                .withTableAliasCalculator(tableAliasCalculator)
-                .build()
-                .render();
+    private Optional<FragmentAndParameters> calculateOrderByClause() {
+        return deleteModel.orderByModel().map(this::renderOrderByClause);
+    }
+
+    private FragmentAndParameters renderOrderByClause(OrderByModel orderByModel) {
+        return new OrderByRenderer(renderingContext).render(orderByModel);
     }
 
     public static Builder withDeleteModel(DeleteModel deleteModel) {
@@ -89,8 +104,8 @@ public class DeleteRenderer {
     }
 
     public static class Builder {
-        private DeleteModel deleteModel;
-        private RenderingStrategy renderingStrategy;
+        private @Nullable DeleteModel deleteModel;
+        private @Nullable RenderingStrategy renderingStrategy;
 
         public Builder withDeleteModel(DeleteModel deleteModel) {
             this.deleteModel = deleteModel;

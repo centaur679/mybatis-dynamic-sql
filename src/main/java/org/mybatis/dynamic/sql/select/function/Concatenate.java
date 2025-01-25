@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2021 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,7 +23,7 @@ import org.mybatis.dynamic.sql.BindableColumn;
 
 public class Concatenate<T> extends OperatorFunction<T> {
 
-    protected Concatenate(BindableColumn<T> firstColumn, BasicColumn secondColumn,
+    protected Concatenate(BasicColumn firstColumn, BasicColumn secondColumn,
             List<BasicColumn> subsequentColumns) {
         super("||", firstColumn, secondColumn, subsequentColumns); //$NON-NLS-1$
     }
@@ -39,7 +39,7 @@ public class Concatenate<T> extends OperatorFunction<T> {
     }
 
     public static <T> Concatenate<T> of(BindableColumn<T> firstColumn, BasicColumn secondColumn,
-                                        List<BasicColumn> subsequentColumns) {
+            List<BasicColumn> subsequentColumns) {
         return new Concatenate<>(firstColumn, secondColumn, subsequentColumns);
     }
 }

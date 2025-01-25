@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,11 @@
 package examples.type_conversion;
 
 import static examples.type_conversion.MyFilesDynamicSqlSupport.*;
+import static examples.type_conversion.ToBase64.toBase64;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mybatis.dynamic.sql.SqlBuilder.*;
-import static examples.type_conversion.ToBase64.toBase64;
+
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Connection;
@@ -53,6 +54,7 @@ class TypeConversionTest {
     void setup() throws Exception {
         Class.forName(JDBC_DRIVER);
         InputStream is = getClass().getResourceAsStream("/examples/type_conversion/CreateDB.sql");
+        assert is != null;
         try (Connection connection = DriverManager.getConnection(JDBC_URL, "sa", "")) {
             ScriptRunner sr = new ScriptRunner(connection);
             sr.setLogWriter(null);
@@ -81,7 +83,7 @@ class TypeConversionTest {
                     .build()
                     .render(RenderingStrategies.MYBATIS3);
 
-            int rows = mapper.insert(insertStatement);
+            int rows = mapper.generalInsert(insertStatement);
             assertThat(rows).isEqualTo(1);
 
             SelectStatementProvider selectStatement = select(fileId, fileContents)
@@ -90,7 +92,7 @@ class TypeConversionTest {
                     .build()
                     .render(RenderingStrategies.MYBATIS3);
 
-            Map<String, Object> row = mapper.generalSelect(selectStatement);
+            Map<String, Object> row = mapper.selectOneMappedRow(selectStatement);
             assertThat(row).containsExactly(entry("FILE_ID", 1), entry("FILE_CONTENTS", randomBlob));
 
             selectStatement = select(fileId, toBase64(fileContents).as("checksum"))
@@ -103,7 +105,7 @@ class TypeConversionTest {
                     + "where file_id = #{parameters.p1,jdbcType=INTEGER}";
             assertThat(selectStatement.getSelectStatement()).isEqualTo(expected);
 
-            row = mapper.generalSelect(selectStatement);
+            row = mapper.selectOneMappedRow(selectStatement);
 
             String base64 = Base64.getEncoder().encodeToString(randomBlob);
             assertThat(row).contains(entry("FILE_ID", 1), entry("CHECKSUM", base64));
@@ -125,7 +127,7 @@ class TypeConversionTest {
                     .build()
                     .render(RenderingStrategies.MYBATIS3);
 
-            int rows = mapper.insert(insertStatement);
+            int rows = mapper.generalInsert(insertStatement);
             assertThat(rows).isEqualTo(1);
 
             SelectStatementProvider selectStatement = select(fileId, fileContents)
@@ -134,7 +136,7 @@ class TypeConversionTest {
                     .build()
                     .render(RenderingStrategies.MYBATIS3);
 
-            Map<String, Object> row = mapper.generalSelect(selectStatement);
+            Map<String, Object> row = mapper.selectOneMappedRow(selectStatement);
             assertThat(row).contains(entry("FILE_ID", 1), entry("FILE_CONTENTS", randomBlob));
 
             String base64 = Base64.getEncoder().encodeToString(randomBlob);
@@ -148,7 +150,7 @@ class TypeConversionTest {
                     + "where TO_BASE64(file_contents) = #{parameters.p1,jdbcType=VARCHAR}";
             assertThat(selectStatement.getSelectStatement()).isEqualTo(expected);
 
-            row = mapper.generalSelect(selectStatement);
+            row = mapper.selectOneMappedRow(selectStatement);
 
             assertThat(row).contains(entry("FILE_ID", 1), entry("FILE_CONTENTS", randomBlob));
         }

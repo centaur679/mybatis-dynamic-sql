@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,17 +15,14 @@
  */
 package examples.kotlin.mybatis3.joins
 
+import examples.kotlin.mybatis3.TestUtils
 import examples.kotlin.mybatis3.joins.ItemMasterDynamicSQLSupport.itemMaster
 import examples.kotlin.mybatis3.joins.OrderLineDynamicSQLSupport.orderLine
-import org.apache.ibatis.datasource.unpooled.UnpooledDataSource
-import org.apache.ibatis.jdbc.ScriptRunner
-import org.apache.ibatis.mapping.Environment
-import org.apache.ibatis.session.Configuration
-import org.apache.ibatis.session.SqlSession
-import org.apache.ibatis.session.SqlSessionFactoryBuilder
-import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory
+import org.apache.ibatis.session.SqlSessionFactory
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.mybatis.dynamic.sql.util.kotlin.elements.invoke
 import org.mybatis.dynamic.sql.util.kotlin.mybatis3.deleteFrom
 import org.mybatis.dynamic.sql.util.kotlin.mybatis3.select
@@ -33,33 +30,24 @@ import org.mybatis.dynamic.sql.util.kotlin.mybatis3.update
 import org.mybatis.dynamic.sql.util.mybatis3.CommonDeleteMapper
 import org.mybatis.dynamic.sql.util.mybatis3.CommonSelectMapper
 import org.mybatis.dynamic.sql.util.mybatis3.CommonUpdateMapper
-import java.io.InputStreamReader
-import java.sql.DriverManager
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExistsTest {
+    private lateinit var sqlSessionFactory: SqlSessionFactory
 
-    private fun newSession(): SqlSession {
-        Class.forName(JDBC_DRIVER)
-        val script = javaClass.getResourceAsStream("/examples/kotlin/mybatis3/joins/CreateJoinDB.sql")
-
-        DriverManager.getConnection(JDBC_URL, "sa", "").use { connection ->
-            val sr = ScriptRunner(connection)
-            sr.setLogWriter(null)
-            sr.runScript(InputStreamReader(script))
+    @BeforeAll
+    fun setup() {
+        sqlSessionFactory = TestUtils.buildSqlSessionFactory {
+            withInitializationScript("/examples/kotlin/mybatis3/joins/CreateJoinDB.sql")
+            withMapper(CommonSelectMapper::class)
+            withMapper(CommonDeleteMapper::class)
+            withMapper(CommonUpdateMapper::class)
         }
-
-        val ds = UnpooledDataSource(JDBC_DRIVER, JDBC_URL, "sa", "")
-        val environment = Environment("test", JdbcTransactionFactory(), ds)
-        val config = Configuration(environment)
-        config.addMapper(CommonSelectMapper::class.java)
-        config.addMapper(CommonDeleteMapper::class.java)
-        config.addMapper(CommonUpdateMapper::class.java)
-        return SqlSessionFactoryBuilder().build(config).openSession()
     }
 
     @Test
     fun testExists() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -102,7 +90,7 @@ class ExistsTest {
 
     @Test
     fun testExistsPropagatedAliases() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -145,7 +133,7 @@ class ExistsTest {
 
     @Test
     fun testNotExists() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -180,7 +168,7 @@ class ExistsTest {
 
     @Test
     fun testNotExistsNewNot() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -215,7 +203,7 @@ class ExistsTest {
 
     @Test
     fun testPropagateTableAliasToExists() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -250,17 +238,19 @@ class ExistsTest {
 
     @Test
     fun testAndExists() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
                 from(itemMaster, "im")
-                where { itemMaster.itemId isEqualTo 22 }
-                and {
-                    exists {
-                        select(orderLine.allColumns()) {
-                            from(orderLine, "ol")
-                            where { orderLine.itemId isEqualTo "im"(itemMaster.itemId) }
+                where {
+                    itemMaster.itemId isEqualTo 22
+                    and {
+                        exists {
+                            select(orderLine.allColumns()) {
+                                from(orderLine, "ol")
+                                where { orderLine.itemId isEqualTo "im"(itemMaster.itemId) }
+                            }
                         }
                     }
                 }
@@ -286,20 +276,22 @@ class ExistsTest {
 
     @Test
     fun testAndExistsAnd() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
                 from(itemMaster, "im")
-                where { itemMaster.itemId isEqualTo 22 }
-                and {
-                    exists {
-                        select(orderLine.allColumns()) {
-                            from(orderLine, "ol")
-                            where { orderLine.itemId isEqualTo "im"(itemMaster.itemId) }
+                where {
+                    itemMaster.itemId isEqualTo 22
+                    and {
+                        exists {
+                            select(orderLine.allColumns()) {
+                                from(orderLine, "ol")
+                                where { orderLine.itemId isEqualTo "im"(itemMaster.itemId) }
+                            }
                         }
+                        and { itemMaster.itemId isGreaterThan 2 }
                     }
-                    and { itemMaster.itemId isGreaterThan 2 }
                 }
                 orderBy(itemMaster.itemId)
             }
@@ -323,7 +315,7 @@ class ExistsTest {
 
     @Test
     fun testAndExistsAnd2() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -344,9 +336,9 @@ class ExistsTest {
             }
 
             val expectedStatement = "select im.* from ItemMaster im" +
-                " where (im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
+                " where im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
                 " and exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)" +
-                " and im.item_id > #{parameters.p2,jdbcType=INTEGER})" +
+                " and im.item_id > #{parameters.p2,jdbcType=INTEGER}" +
                 " order by item_id"
             assertThat(selectStatement.selectStatement).isEqualTo(expectedStatement)
 
@@ -362,7 +354,7 @@ class ExistsTest {
 
     @Test
     fun testAndExistsAnd3() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -383,9 +375,9 @@ class ExistsTest {
             }
 
             val expectedStatement = "select im.* from ItemMaster im" +
-                " where (im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
+                " where im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
                 " and (exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)" +
-                " and im.item_id > #{parameters.p2,jdbcType=INTEGER}))" +
+                " and im.item_id > #{parameters.p2,jdbcType=INTEGER})" +
                 " order by item_id"
             assertThat(selectStatement.selectStatement).isEqualTo(expectedStatement)
 
@@ -401,17 +393,19 @@ class ExistsTest {
 
     @Test
     fun testOrExists() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
                 from(itemMaster, "im")
-                where { itemMaster.itemId isEqualTo 22 }
-                or {
-                    exists {
-                        select(orderLine.allColumns()) {
-                            from(orderLine, "ol")
-                            where { orderLine.itemId isEqualTo "im"(itemMaster.itemId) }
+                where {
+                    itemMaster.itemId isEqualTo 22
+                    or {
+                        exists {
+                            select(orderLine.allColumns()) {
+                                from(orderLine, "ol")
+                                where { orderLine.itemId isEqualTo "im"(itemMaster.itemId) }
+                            }
                         }
                     }
                 }
@@ -446,20 +440,22 @@ class ExistsTest {
 
     @Test
     fun testOrExistsAnd() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
                 from(itemMaster, "im")
-                where { itemMaster.itemId isEqualTo 22 }
-                or {
-                    exists {
-                        select(orderLine.allColumns()) {
-                            from(orderLine, "ol")
-                            where { orderLine.itemId isEqualTo "im"(itemMaster.itemId) }
+                where {
+                    itemMaster.itemId isEqualTo 22
+                    or {
+                        exists {
+                            select(orderLine.allColumns()) {
+                                from(orderLine, "ol")
+                                where { orderLine.itemId isEqualTo "im"(itemMaster.itemId) }
+                            }
                         }
+                        and { itemMaster.itemId isGreaterThan 2 }
                     }
-                    and { itemMaster.itemId isGreaterThan 2 }
                 }
                 orderBy(itemMaster.itemId)
             }
@@ -493,7 +489,7 @@ class ExistsTest {
 
     @Test
     fun testOrExistsAnd2() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -514,9 +510,9 @@ class ExistsTest {
             }
 
             val expectedStatement = "select im.* from ItemMaster im" +
-                " where (im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
+                " where im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
                 " or exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)" +
-                " and im.item_id > #{parameters.p2,jdbcType=INTEGER})" +
+                " and im.item_id > #{parameters.p2,jdbcType=INTEGER}" +
                 " order by item_id"
             assertThat(selectStatement.selectStatement).isEqualTo(expectedStatement)
 
@@ -542,7 +538,7 @@ class ExistsTest {
 
     @Test
     fun testOrExistsAnd3() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -563,9 +559,9 @@ class ExistsTest {
             }
 
             val expectedStatement = "select im.* from ItemMaster im" +
-                " where (im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
+                " where im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
                 " or (exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)" +
-                " and im.item_id > #{parameters.p2,jdbcType=INTEGER}))" +
+                " and im.item_id > #{parameters.p2,jdbcType=INTEGER})" +
                 " order by item_id"
             assertThat(selectStatement.selectStatement).isEqualTo(expectedStatement)
 
@@ -591,7 +587,7 @@ class ExistsTest {
 
     @Test
     fun testWhereExistsOr() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -609,8 +605,8 @@ class ExistsTest {
             }
 
             val expectedStatement = "select im.* from ItemMaster im" +
-                " where (exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)" +
-                " or im.item_id = #{parameters.p1,jdbcType=INTEGER})" +
+                " where exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)" +
+                " or im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
                 " order by item_id"
             assertThat(selectStatement.selectStatement).isEqualTo(expectedStatement)
 
@@ -636,7 +632,7 @@ class ExistsTest {
 
     @Test
     fun testWhereExistsAnd() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonSelectMapper::class.java)
 
             val selectStatement = select(itemMaster.allColumns()) {
@@ -654,8 +650,8 @@ class ExistsTest {
             }
 
             val expectedStatement = "select im.* from ItemMaster im" +
-                " where (exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)" +
-                " and im.item_id = #{parameters.p1,jdbcType=INTEGER})" +
+                " where exists (select ol.* from OrderLine ol where ol.item_id = im.item_id)" +
+                " and im.item_id = #{parameters.p1,jdbcType=INTEGER}" +
                 " order by item_id"
             assertThat(selectStatement.selectStatement).isEqualTo(expectedStatement)
 
@@ -671,7 +667,7 @@ class ExistsTest {
 
     @Test
     fun testDeleteWithHardAlias() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonDeleteMapper::class.java)
             val im = itemMaster.withAlias("im")
             val deleteStatement = deleteFrom(im) {
@@ -698,7 +694,7 @@ class ExistsTest {
 
     @Test
     fun testDeleteWithSoftAlias() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonDeleteMapper::class.java)
             val deleteStatement = deleteFrom(itemMaster, "im") {
                 where {
@@ -724,7 +720,7 @@ class ExistsTest {
 
     @Test
     fun testUpdateWithHardAlias() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonUpdateMapper::class.java)
             val im = itemMaster.withAlias("im")
             val updateStatement = update(im) {
@@ -753,7 +749,7 @@ class ExistsTest {
 
     @Test
     fun testUpdateWithSoftAlias() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(CommonUpdateMapper::class.java)
             val updateStatement = update(itemMaster, "im") {
                 set(itemMaster.description) equalTo "No Orders"
@@ -777,10 +773,5 @@ class ExistsTest {
             val rows = mapper.update(updateStatement)
             assertThat(rows).isEqualTo(1)
         }
-    }
-
-    companion object {
-        const val JDBC_URL = "jdbc:hsqldb:mem:aname"
-        const val JDBC_DRIVER = "org.hsqldb.jdbcDriver"
     }
 }

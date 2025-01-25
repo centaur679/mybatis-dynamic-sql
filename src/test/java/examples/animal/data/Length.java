@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,15 +15,17 @@
  */
 package examples.animal.data;
 
-import org.mybatis.dynamic.sql.BindableColumn;
-import org.mybatis.dynamic.sql.render.TableAliasCalculator;
-import org.mybatis.dynamic.sql.select.function.AbstractTypeConvertingFunction;
-
 import java.sql.JDBCType;
 import java.util.Optional;
 
+import org.mybatis.dynamic.sql.BasicColumn;
+import org.mybatis.dynamic.sql.BindableColumn;
+import org.mybatis.dynamic.sql.render.RenderingContext;
+import org.mybatis.dynamic.sql.select.function.AbstractTypeConvertingFunction;
+import org.mybatis.dynamic.sql.util.FragmentAndParameters;
+
 public class Length extends AbstractTypeConvertingFunction<Object, Integer, Length> {
-    private Length(BindableColumn<Object> column) {
+    private Length(BasicColumn column) {
         super(column);
     }
 
@@ -33,15 +35,9 @@ public class Length extends AbstractTypeConvertingFunction<Object, Integer, Leng
     }
 
     @Override
-    public Optional<String> typeHandler() {
-        return Optional.empty();
-    }
-
-    @Override
-    public String renderWithTableAlias(TableAliasCalculator tableAliasCalculator) {
-        return "length(" //$NON-NLS-1$
-                + column.renderWithTableAlias(tableAliasCalculator)
-                + ")"; //$NON-NLS-1$
+    public FragmentAndParameters render(RenderingContext renderingContext) {
+        return column.render(renderingContext)
+                .mapFragment(f -> "length(" + f + ")"); //$NON-NLS-1$ //$NON-NLS-2$
     }
 
     @Override
@@ -50,9 +46,6 @@ public class Length extends AbstractTypeConvertingFunction<Object, Integer, Leng
     }
 
     public static Length length(BindableColumn<?> column) {
-        @SuppressWarnings("unchecked")
-        BindableColumn<Object> c = (BindableColumn<Object>) column;
-        return new Length(c);
+        return new Length(column);
     }
 }
-

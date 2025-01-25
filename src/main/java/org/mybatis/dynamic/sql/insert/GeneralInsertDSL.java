@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,9 +21,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 import org.mybatis.dynamic.sql.SqlColumn;
 import org.mybatis.dynamic.sql.SqlTable;
+import org.mybatis.dynamic.sql.configuration.StatementConfiguration;
 import org.mybatis.dynamic.sql.util.AbstractColumnMapping;
 import org.mybatis.dynamic.sql.util.Buildable;
 import org.mybatis.dynamic.sql.util.ConstantMapping;
@@ -46,12 +47,12 @@ public class GeneralInsertDSL implements Buildable<GeneralInsertModel> {
         return new SetClauseFinisher<>(column);
     }
 
-    @NotNull
     @Override
     public GeneralInsertModel build() {
         return new GeneralInsertModel.Builder()
                 .withTable(table)
                 .withInsertMappings(columnMappings)
+                .withStatementConfiguration(new StatementConfiguration()) // nothing configurable in this statement yet
                 .build();
     }
 
@@ -91,20 +92,20 @@ public class GeneralInsertDSL implements Buildable<GeneralInsertModel> {
             return GeneralInsertDSL.this;
         }
 
-        public GeneralInsertDSL toValueOrNull(T value) {
+        public GeneralInsertDSL toValueOrNull(@Nullable T value) {
             return toValueOrNull(() -> value);
         }
 
-        public GeneralInsertDSL toValueOrNull(Supplier<T> valueSupplier) {
+        public GeneralInsertDSL toValueOrNull(Supplier<@Nullable T> valueSupplier) {
             columnMappings.add(ValueOrNullMapping.of(column, valueSupplier));
             return GeneralInsertDSL.this;
         }
 
-        public GeneralInsertDSL toValueWhenPresent(T value) {
+        public GeneralInsertDSL toValueWhenPresent(@Nullable T value) {
             return toValueWhenPresent(() -> value);
         }
 
-        public GeneralInsertDSL toValueWhenPresent(Supplier<T> valueSupplier) {
+        public GeneralInsertDSL toValueWhenPresent(Supplier<@Nullable T> valueSupplier) {
             columnMappings.add(ValueWhenPresentMapping.of(column, valueSupplier));
             return GeneralInsertDSL.this;
         }
@@ -112,14 +113,14 @@ public class GeneralInsertDSL implements Buildable<GeneralInsertModel> {
 
     public static class Builder {
         private final List<AbstractColumnMapping> columnMappings = new ArrayList<>();
-        private SqlTable table;
+        private @Nullable SqlTable table;
 
         public Builder withTable(SqlTable table) {
             this.table = table;
             return this;
         }
 
-        public Builder withColumnMappings(Collection<AbstractColumnMapping> columnMappings) {
+        public Builder withColumnMappings(Collection<? extends AbstractColumnMapping> columnMappings) {
             this.columnMappings.addAll(columnMappings);
             return this;
         }

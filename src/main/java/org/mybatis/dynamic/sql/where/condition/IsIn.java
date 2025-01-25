@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,19 +15,15 @@
  */
 package org.mybatis.dynamic.sql.where.condition;
 
-import static org.mybatis.dynamic.sql.util.StringUtilities.spaceAfter;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.mybatis.dynamic.sql.AbstractListValueCondition;
-import org.mybatis.dynamic.sql.Callback;
+import org.mybatis.dynamic.sql.render.RenderingContext;
+import org.mybatis.dynamic.sql.util.Validator;
 
 public class IsIn<T> extends AbstractListValueCondition<T> {
     private static final IsIn<?> EMPTY = new IsIn<>(Collections.emptyList());
@@ -38,46 +34,37 @@ public class IsIn<T> extends AbstractListValueCondition<T> {
         return t;
     }
 
-    private <S> IsIn<S> emptyWithCallBack() {
-        return new IsIn<>(Collections.emptyList(), emptyCallback);
-    }
-
     protected IsIn(Collection<T> values) {
         super(values);
     }
 
-    protected IsIn(Collection<T> values, Callback emptyCallback) {
-        super(values, emptyCallback);
+    @Override
+    public boolean shouldRender(RenderingContext renderingContext) {
+        Validator.assertNotEmpty(values, "ERROR.44", "IsIn"); //$NON-NLS-1$ //$NON-NLS-2$
+        return true;
     }
 
     @Override
-    public String renderCondition(String columnName, Stream<String> placeholders) {
-        return spaceAfter(columnName)
-                + placeholders.collect(Collectors.joining(",", "in (", ")")); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-    }
-
-    @Override
-    public IsIn<T> withListEmptyCallback(Callback callback) {
-        return new IsIn<>(values, callback);
+    public String operator() {
+        return "in"; //$NON-NLS-1$
     }
 
     @Override
     public IsIn<T> filter(Predicate<? super T> predicate) {
-        return filterSupport(predicate, IsIn::new, this, this::emptyWithCallBack);
+        return filterSupport(predicate, IsIn::new, this, IsIn::empty);
     }
 
     /**
-     * If renderable, apply the mapping to each value in the list return a new condition with the mapped values.
-     *     Else return a condition that will not render (this).
+     * If not empty, apply the mapping to each value in the list return a new condition with the mapped values.
+     *     Else return an empty condition (this).
      *
-     * @param mapper a mapping function to apply to the values, if renderable
+     * @param mapper a mapping function to apply to the values, if not empty
      * @param <R> type of the new condition
-     * @return a new condition with mapped values if renderable, otherwise a condition
-     *     that will not render.
+     * @return a new condition with mapped values if renderable, otherwise an empty condition
      */
     public <R> IsIn<R> map(Function<? super T, ? extends R> mapper) {
-        BiFunction<Collection<R>, Callback, IsIn<R>> constructor = IsIn::new;
-        return mapSupport(mapper, constructor, this::emptyWithCallBack);
+        Function<Collection<R>, IsIn<R>> constructor = IsIn::new;
+        return mapSupport(mapper, constructor, IsIn::empty);
     }
 
     @SafeVarargs

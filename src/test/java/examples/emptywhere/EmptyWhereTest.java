@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -56,12 +56,7 @@ class EmptyWhereTest {
 
         Variation v4 = new Variation(null, null, "");
 
-        List<Variation> answer = new ArrayList<>();
-        answer.add(v1);
-        answer.add(v2);
-        answer.add(v3);
-        answer.add(v4);
-        return answer;
+        return List.of(v1, v2, v3, v4);
     }
 
     static Stream<Variation> whereVariations() {
@@ -119,6 +114,7 @@ class EmptyWhereTest {
 
         builder.and(firstName, isEqualTo(variation.firstName).filter(Objects::nonNull));
         builder.or(PersonDynamicSqlSupport.lastName, isEqualTo(variation.lastName).filter(Objects::nonNull));
+        builder.configureStatement(c -> c.setNonRenderingWhereClauseAllowed(true));
 
         DeleteStatementProvider deleteStatement = builder.build().render(RenderingStrategies.MYBATIS3);
 
@@ -159,6 +155,7 @@ class EmptyWhereTest {
 
         builder.and(firstName, isEqualTo(variation.firstName).filter(Objects::nonNull));
         builder.or(PersonDynamicSqlSupport.lastName, isEqualTo(variation.lastName).filter(Objects::nonNull));
+        builder.configureStatement(c -> c.setNonRenderingWhereClauseAllowed(true));
 
         SelectStatementProvider selectStatement = builder.build().render(RenderingStrategies.MYBATIS3);
 
@@ -173,7 +170,7 @@ class EmptyWhereTest {
         String lName = "Flintstone";
 
         QueryExpressionDSL<SelectModel>.QueryExpressionWhereBuilder builder = select(id, firstName, PersonDynamicSqlSupport.lastName, orderDate)
-                .from(person).join(order).on(person.id, equalTo(order.personId))
+                .from(person).join(order).on(person.id, isEqualTo(order.personId))
                 .where(id, isEqualTo(3));
 
         builder.and(firstName, isEqualTo(fName).filter(Objects::nonNull));
@@ -195,11 +192,12 @@ class EmptyWhereTest {
     @MethodSource("joinWhereVariations")
     void testJoinVariations(Variation variation) {
         QueryExpressionDSL<SelectModel>.QueryExpressionWhereBuilder builder = select(id, firstName, PersonDynamicSqlSupport.lastName, orderDate)
-                .from(person).join(order).on(person.id, equalTo(order.personId))
+                .from(person).join(order).on(person.id, isEqualTo(order.personId))
                 .where();
 
         builder.and(firstName, isEqualTo(variation.firstName).filter(Objects::nonNull));
         builder.or(PersonDynamicSqlSupport.lastName, isEqualTo(variation.lastName).filter(Objects::nonNull));
+        builder.configureStatement(c -> c.setNonRenderingWhereClauseAllowed(true));
 
         SelectStatementProvider selectStatement = builder.build().render(RenderingStrategies.MYBATIS3);
 
@@ -243,6 +241,7 @@ class EmptyWhereTest {
 
         builder.and(firstName, isEqualTo(variation.firstName).filter(Objects::nonNull));
         builder.or(PersonDynamicSqlSupport.lastName, isEqualTo(variation.lastName).filter(Objects::nonNull));
+        builder.configureStatement(c -> c.setNonRenderingWhereClauseAllowed(true));
 
         UpdateStatementProvider updateStatement = builder.build().render(RenderingStrategies.MYBATIS3);
 
@@ -258,31 +257,40 @@ class EmptyWhereTest {
         String fName = "Fred";
         String lName = "Flintstone";
 
-        WhereDSL builder = where(id, isEqualTo(3));
+        WhereDSL.StandaloneWhereFinisher builder = where(id, isEqualTo(3));
 
         builder.and(firstName, isEqualTo(fName).filter(Objects::nonNull));
         builder.and(PersonDynamicSqlSupport.lastName, isEqualTo(lName).filter(Objects::nonNull));
 
-        WhereClauseProvider whereClause = builder.build().render(RenderingStrategies.MYBATIS3);
+        Optional<WhereClauseProvider> whereClause = builder.build().render(RenderingStrategies.MYBATIS3);
 
         String expected = "where id = #{parameters.p1}"
                 + " and first_name = #{parameters.p2}"
                 + " and last_name = #{parameters.p3}";
 
-        assertThat(whereClause.getWhereClause()).isEqualTo(expected);
+        assertThat(whereClause.map(WhereClauseProvider::getWhereClause)).hasValueSatisfying(wc ->
+            assertThat(wc).isEqualTo(expected)
+        );
     }
 
     @ParameterizedTest
     @MethodSource("whereVariations")
     void testWhereVariations(Variation variation) {
-        WhereDSL builder = where();
+        WhereDSL.StandaloneWhereFinisher builder = where();
 
         builder.and(firstName, isEqualTo(variation.firstName).filter(Objects::nonNull));
         builder.or(PersonDynamicSqlSupport.lastName, isEqualTo(variation.lastName).filter(Objects::nonNull));
+        builder.configureStatement(c -> c.setNonRenderingWhereClauseAllowed(true));
 
-        WhereClauseProvider whereClause = builder.build().render(RenderingStrategies.MYBATIS3);
+        Optional<WhereClauseProvider> whereClause = builder.build().render(RenderingStrategies.MYBATIS3);
 
-        assertThat(whereClause.getWhereClause()).isEqualTo(variation.whereClause);
+        if (variation.firstName == null && variation.lastName == null) {
+            assertThat(whereClause).isEmpty();
+        } else {
+            assertThat(whereClause.map(WhereClauseProvider::getWhereClause)).hasValueSatisfying(wc ->
+                    assertThat(wc).isEqualTo(variation.whereClause)
+            );
+        }
     }
 
     private static class Variation {

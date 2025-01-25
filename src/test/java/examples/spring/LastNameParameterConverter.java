@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,12 +15,15 @@
  */
 package examples.spring;
 
+import org.jspecify.annotations.NullMarked;
 import org.mybatis.dynamic.sql.ParameterTypeConverter;
 import org.springframework.core.convert.converter.Converter;
 
-public class LastNameParameterConverter implements ParameterTypeConverter<LastName, String>, Converter<LastName, String> {
+@NullMarked
+public class LastNameParameterConverter implements ParameterTypeConverter<LastName, String>,
+        Converter<LastName, String> {
     @Override
     public String convert(LastName source) {
-        return source == null ? null : source.getName();
+        return source.getName();
     }
 }

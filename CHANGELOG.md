@@ -2,9 +2,326 @@
 
 This log will detail notable changes to MyBatis Dynamic SQL. Full details are available on the GitHub milestone pages.
 
-## Release 1.4.1 - Unreleased
+## Release 2.0.0 - Unreleased
+
+Release 2.0.0 is a significant milestone for the library. We have moved to Java 17 as the minimum version supported. If
+you are unable to move to this version of Java then the releases in the 1.x line can be used with Java 8.
+
+In addition, we have taken the opportunity to make changes to the library that may break existing code. We have
+worked to make these changes as minimal as possible.
+
+### Potentially Breaking Changes:
+
+- If you use this library with MyBatis' Spring Batch integration, you will need to make changes as we have
+  refactored that support to be more flexible. Please see the
+  [Spring Batch](https://mybatis.org/mybatis-dynamic-sql/docs/springBatch.html) documentation page to see the new usage
+  details.
+- If you have created any custom implementations of `SortSpecification`, you will need to update those
+  implementations due to a new rendering strategy for ORDER BY phrases. The old methods `isDescending` and `orderByName`
+  are removed in favor of a new method `renderForOrderBy` 
+- If you have implemented any custom functions, you will likely need to make changes. The supplied base classes now
+  hold an instance of `BasicColumn` rather than `BindableColumn`. This change was made to make the functions more
+  useful in variety of circumstances. If you follow the patterns shown on the
+  [Extending the Library](https://mybatis.org/mybatis-dynamic-sql/docs/extending.html) page, the change should be
+  limited to changing the private constructor to accept `BasicColumn` rather than `BindableColumn`.
+
+### Adoption of JSpecify (https://jspecify.dev/)
+
+Following the lead of many other projects (including The Spring Framework), we have adopted JSpecify to fully
+document the null handling properties of this library. JSpecify is now a runtime dependency - as is
+recommended practice with JSpecify.
+
+This change should not impact the running of any existing code, but depending on your usage you may see new IDE or
+tooling warnings based on the declared nullability of methods in the library. You may choose to ignore the
+warnings and things should continue to function. Of course, we recommend that you do not ignore these warnings!
+
+In general, the library does not expect that you will pass a null value into any method. There are two exceptions to
+this rule:
+
+1. Some builder methods will accept a null value if the target object will properly handle null values through the
+   use of java.util.Optional
+2. Methods with names that include "WhenPresent" will properly handle null parameters
+   (for example, "isEqualToWhenPresent")
+
+As you might expect, standardizing null handling revealed some issues in the library that may impact you.
+
+Fixing compiler warnings and errors:
+
+1. We expect that most of the warnings you encounter will be related to passing null values into a where condition.
+   These warnings should be resolved by changing your code to use the "WhenPresent" versions of methods as those
+   methods handle null values in a predictable way.
+2. Java Classes that extend "AliasableSqlTable" will likely see IDE warnings about non-null type arguments. This can be
+   resolved by adding a "@NullMarked" annotation to the class or package. This issue does not affect Kotlin classes
+   that extend "AliasableSqlTable".
+3. Similarly, if you have coded any functions for use with your queries, you can resolve most IDE warnings by adding
+   the "@NullMarked" annotation.
+4. If you have coded any Kotlin functions that operate on a generic Java class from the library, then you should
+   change the type parameter definition to specify a non-nullable type. For example...
+
+   ```kotlin
+   import org.mybatis.dynamic.sql.SqlColumn
+
+   fun <T> foo(column: SqlColumn<T>) {
+   }
+   ```
+   
+   Should change to:
+
+   ```kotlin
+   import org.mybatis.dynamic.sql.SqlColumn
+
+   fun <T : Any> foo(column: SqlColumn<T>) {
+   }
+   ```
+
+Runtime behavior changes:
+
+1. The where conditions (isEqualTo, isLessThan, etc.) can be filtered and result in an "empty" condition -
+   similar to java.util.Optional. Previously, calling a "value" method of the condition would return null. Now
+   those methods will throw "NoSuchElementException". This should not impact you in normal usage.
+2. We have updated the "ParameterTypeConverter" used in Spring applications to maintain compatibility with Spring's
+   "Converter" interface. The primary change is that the framework will no longer call a type converter if the
+   input value is null. This should simplify the coding of converters and foster reuse with existing Spring converters.
+
+### Other important changes:
+
+- The library now requires Java 17
+- Deprecated code from prior releases is removed
+- We now allow CASE expressions in ORDER BY Clauses
+- The "In" conditions will now throw `InvalidSqlException` during rendering if the list of values is empty. Previously
+  an empty In condition would render as invalid SQL and would usually cause a runtime exception from the database.
+  With this change, the exception thrown is more predictable and the error is caught before sending the SQL to the
+  database.
+- All the paging methods (limit, offset, fetchFirst) now have "WhenPresent" variations that will drop the phrase from
+  rendering if a null value is passed in
+- The JOIN syntax is updated and now allows full boolean expressions like a WHERE clause. The prior JOIN syntax
+  is deprecated and will be removed in a future release.
+- Add support for locking options in select statements (for update, for share, etc.) This is not an abstraction of
+  these concepts for different databases it simply adds known clauses to a generated SQL statement. You should always
+  test to make sure these functions work in your target database. Currently, we support, and test, the options
+  supported by PostgreSQL.
+
+## Release 1.5.2 - June 3, 2024
+
+This is a small maintenance release with the following changes:
+
+1. Improvements to the Kotlin DSL for CASE expressions (infix methods for "else" and "then"). See this PR for 
+   details: ([#785](https://github.com/mybatis/mybatis-dynamic-sql/pull/785))
+2. **Potentially Breaking Change**: the "in" conditions ("isIn", "isNotIn", "isInCaseInsensitive",
+   "isNotInCaseInsensitive") will now render if the input list of values is empty. This will lead
+   to a runtime exception. This change was made out of an abundance of caution and is the safest choice.
+   If you wish to allow "in" conditions to be removed from where clauses when the list is empty,
+   then use the "when present" versions of those conditions. If you are unsure how this works, please
+   read the documentation here: https://mybatis.org/mybatis-dynamic-sql/docs/conditions.html#optionality-with-the-%E2%80%9Cin%E2%80%9D-conditions
+   For background on the reason for the change, see the discussion here: https://github.com/mybatis/mybatis-dynamic-sql/issues/788
+
+GitHub milestone: [https://github.com/mybatis/mybatis-dynamic-sql/milestone/14?closed=1](https://github.com/mybatis/mybatis-dynamic-sql/milestone/14?closed=1)
+
+**Important:** This is the last release that will be compatible with Java 8.
+
+## Release 1.5.1 - April 30, 2024
+
+This is a minor release with several enhancements.
+
+GitHub milestone: [https://github.com/mybatis/mybatis-dynamic-sql/milestone/13?closed=1](https://github.com/mybatis/mybatis-dynamic-sql/milestone/13?closed=1)
+
+### Case Expressions and Cast Function
+We've added support for CASE expressions to the library. Both simple and searched case expressions are supported.
+This is a fairly extensive enhancement as case expressions are quite complex, but we were able to reuse many of the
+building blocks from the WHERE and HAVING support already in the library. You should be able to build CASE expressions
+with relatively few limitations.
+
+It is also common to use a CAST function with CASE expressions, so we have added CAST as a built-in function
+in the library.
+
+The DSL for both Java and Kotlin has been updated to fully support CASE expressions in the same idiomatic forms
+as other parts of the library.
+
+We've tested this extensively and the code is, of course, 100% covered by test code. But it is possible that we've not
+covered every scenario. Please let us know if you find issues.
+
+Full documentation is available here:
+- [Java Case Expression DSL Documentation](https://mybatis.org/mybatis-dynamic-sql/docs/caseExpressions.html)
+- [Kotlin Case Expression DSL Documentation](https://mybatis.org/mybatis-dynamic-sql/docs/kotlinCaseExpressions.html)
+
+The pull request for this change is ([#761](https://github.com/mybatis/mybatis-dynamic-sql/pull/761))
+
+### Parameter Values in Joins
+
+We've added the ability to specify typed values in equi-joins. This allows you to avoid the use of constants, and it is
+type safe. For example:
+
+```java
+SelectStatementProvider selectStatement = select(orderLine.orderId, orderLine.quantity, itemMaster.itemId, itemMaster.description)
+    .from(itemMaster, "im")
+    .join(orderLine, "ol").on(orderLine.itemId, equalTo(itemMaster.itemId))
+    .and(orderLine.orderId, equalTo(1))
+    .build()
+    .render(RenderingStrategies.MYBATIS3);
+```
+
+Note the phrase `and(orderLine.orderId, equalTo(1))` which will be rendered with a bound SQL parameter. Currently, this
+capability is limited to equality only. If you have a use for other functions (not equal, less then, greater than, etc.)
+please let us know.
+
+In order to add this capability, we've modified the join DSL to add type information to the join columns. This should
+be source code compatible with most uses. There could be an issue if you are joining tables with columns of different
+types - which is a rare usage. Please let us know if this causes an undo hardship.
+
+### Other Changes
+
+1. Rendering of conditions and columns was refactored. One benefit of this change is that
+   it is now easier to support more complex functions - such as the aggregate function `sum(id < 5)` which is the
+   initial enhancement request that inspired this change. As a result of the changes, one method is deprecated
+   in the `BasicColumn` object. If you have implemented any custom functions, please note this deprecation and update
+   your code accordingly. ([#662](https://github.com/mybatis/mybatis-dynamic-sql/pull/662))
+2. Added the ability to code a bound value in rendered SQL. This is similar to a constant, but the value is added to
+   the parameter map and a bind parameter marker is rendered. ([#738](https://github.com/mybatis/mybatis-dynamic-sql/pull/738))
+3. Refactored the conditions to separate the concept of an empty condition from that of a renderable condition. This
+   will enable a future change where conditions could decide to allow rendering even if they are considered empty (such
+   as rendering empty lists). This change should be transparent to users unless they have implemented custom conditions.
+4. Added a configuration setting to allow empty list conditions to render. This could generate invalid SQL, but might be
+   a good safety measure in some cases.
+5. Added Array based functions for the "in" and "not in" conditions in the Kotlin DSL. These functions allow a more
+   natural use of an Array as an input for an "in" condition. They also allow easy reuse of a vararg argument in a
+   function. ([#781](https://github.com/mybatis/mybatis-dynamic-sql/pull/781))
+
+## Release 1.5.0 - April 21, 2023
+
+GitHub milestone: [https://github.com/mybatis/mybatis-dynamic-sql/milestone/12?closed=1](https://github.com/mybatis/mybatis-dynamic-sql/milestone/12?closed=1)
+
+### Potentially Breaking Changes
+
+This release includes a major refactoring of the "where" clause support. This is done to support common code for
+"having" clauses which is a new feature (see below). Most changes are source code compatible with previous
+releases and should be transparent with no impact. Following is a list of some more visible changes...
+
+First, the "where" methods in `SqlBuilder` now return an instance of `WhereDSL.StandaloneWhereFinisher` rather than
+`WhereDSL`. This will only impact you if you are using the WhereDSL directly which is a rare use case.
+
+Second, if you are using independent or reusable where clauses you will need to make changes. Previously you might have
+coded an independent where clause like this:
+
+```java
+private WhereApplier commonWhere = d -> d.where(id, isEqualTo(1)).or(occupation, isNull());
+```
+
+Code like this will no longer compile. There are two options for updates. The simplest change to make is to
+replace "where" with "and" or "or" in the above code. For example...
+
+```java
+private WhereApplier commonWhere = d -> d.and(id, isEqualTo(1)).or(occupation, isNull());
+```
+
+This will function as before, but you may think it looks a bit strange because the phrase starts with "and". If you
+want this to look more like true SQL, you can write code like this:
+
+```java
+private final WhereApplier commonWhere = where(id, isEqualTo(1)).or(occupation, isNull()).toWhereApplier();
+```
+
+This uses a `where` method from the `SqlBuilder` class. 
+
+### "Having" Clause Support
+
+This release adds support for "having" clauses in select statements. This includes a refactoring of the "where"
+support, so we can reuse the and/or logic and rendering that is already present in the "where" clause support.
+This because "having" and "where" are essentially the same.
+
+One slight behavior change with this refactoring is that the renderer will now remove a useless open/close
+parentheses around certain rendered where clauses. Previously it was possible to have a rendered where clause like
+this:
+
+```sql
+where (a < 2 and b > 3)
+```
+
+The renderer will now remove the open/close parentheses in a case like this.
+
+In the Java DSL, a "having" clause can only be coded after a "group by" clause - which is a reasonable restriction
+as "having" is only needed if there is a "group by".
+
+In the Kotlin DSL, the "group by" restriction is not present because of the free form nature of that DSL - but you 
+should probably only use "having" if there is a "group by". Also note that the freestanding "and" and "or"
+functions in the Kotlin DSL still only apply to the where clause. For this reason, the freestanding "and" and "or"
+methods are deprecated. Please only use the "and" and "or" methods inside a "where" or "having" lambda.
+
+The pull request for this change is ([#550](https://github.com/mybatis/mybatis-dynamic-sql/pull/550))
+
+### Multi-Select Queries
+
+A multi-select query is a special case of a union select statement. The difference is that it allows "order by" and
+paging clauses to be applied to the nested queries. A multi-select query looks like this:
+
+```java
+SelectStatementProvider selectStatement = multiSelect(
+        select(id.as("A_ID"), firstName, lastName, birthDate, employed, occupation, addressId)
+        .from(person)
+        .where(id, isLessThanOrEqualTo(2))
+        .orderBy(id)
+        .limit(1)
+).unionAll(
+        select(id.as("A_ID"), firstName, lastName, birthDate, employed, occupation, addressId)
+        .from(person)
+        .where(id, isGreaterThanOrEqualTo(4))
+        .orderBy(id.descending())
+        .limit(1)
+).orderBy(sortColumn("A_ID"))
+.fetchFirst(2).rowsOnly()
+.build()
+.render(RenderingStrategies.MYBATIS3);
+```
+
+Notice how both inner queries have `order by` and `limit` phrases, then there is an `order by` phrase
+for the entire query.
+
+The pull request for this change is ([#591](https://github.com/mybatis/mybatis-dynamic-sql/pull/591))
+
+### Other Changes
+
+1. Added support for specifying "limit" and "order by" on the DELETE and UPDATE statements. Not all databases support
+   this SQL extension, and different databases have different levels of support. For example, MySQL/MariaDB have full
+   support but HSQLDB only supports limit as an extension to the WHERE clause. If you choose to use this new capability,
+   please test to make sure it is supported in your database. ([#544](https://github.com/mybatis/mybatis-dynamic-sql/pull/544))
+2. Deprecated Kotlin DSL functions have been removed, as well as deprecated support for "EmptyListCallback" in the "in"
+   conditions. ([#548](https://github.com/mybatis/mybatis-dynamic-sql/pull/548))
+3. Refactored the common insert mapper support for MyBatis3 by adding a CommonGeneralInsertMapper that can be used
+   without a class that matches the table row. It includes methods for general insert and insert select.
+   ([#570](https://github.com/mybatis/mybatis-dynamic-sql/pull/570))
+4. Added the ability to change a table name on AliasableSqlTable - this creates a new instance of the object with a new
+   name. This is useful in sharded databases where the name of the table is calculated based on some sharding
+   algorithm. Also deprecated the constructors on SqlTable that accept Suppliers for table name - this creates an
+   effectively mutable object and goes against the principles of immutability that we strive for in the library.
+   ([#572](https://github.com/mybatis/mybatis-dynamic-sql/pull/572))
+5. Add `SqlBuilder.concat` and the equivalent in Kotlin. This is a concatenate function that works on more databases.
+   ([#573](https://github.com/mybatis/mybatis-dynamic-sql/pull/573))
+6. Several classes and methods in the Kotlin DSL are deprecated in response to the new "having" support
+7. Added support for inserting a list of simple classes like Integers, Strings, etc. This is via a new "map to row"
+   function on the insert, batch insert, and multirow insert statements. ([#612](https://github.com/mybatis/mybatis-dynamic-sql/pull/612)) 
+
+## Release 1.4.1 - October 7, 2022
 
 GitHub milestone: [https://github.com/mybatis/mybatis-dynamic-sql/issues?q=milestone%3A1.4.1+](https://github.com/mybatis/mybatis-dynamic-sql/issues?q=milestone%3A1.4.1+)
+
+### Potentially Breaking Change
+
+In this release we have changed the default behavior of the library in one key area. If a where clause is coded,
+but fails to render because all the optional conditionals drop out of the where clause, then the library will now
+throw a `NonRenderingWhereClauseException`. We have made this change out of an abundance of caution. The prior
+behavior would allow generation of statements that inadvertently affected all rows in a table.
+
+We have also deprecated the "empty callback" functions in the "in" conditions in favor of this new configuration
+strategy. The "empty callback" methods were effective for "in" conditions that failed to render, but they offered
+no help for other conditions that failed to render, or if all conditions fail to render - which is arguably a more
+dangerous outcome. If you were using any of these methods, you should remove the calls to those methods and catch the
+new `NonRenderingWhereClauseException`.
+
+If you desire the prior behavior where non rendering where clauses are allowed, you can change the global configuration
+of the library or - even better - change the configuration of individual statements where this behavior should be allowed.
+
+For examples of global and statement configuration, see the "Configuration of the Library" page.
+
+### Other Changes
 
 1. Added support for criteria groups without an initial criteria. This makes it possible to create an independent list
    of pre-created criteria and then add the list to a where clause. See the tests in the related pull request for
@@ -15,6 +332,12 @@ GitHub milestone: [https://github.com/mybatis/mybatis-dynamic-sql/issues?q=miles
 3. Updated the Kotlin DSL to use Kotlin 1.7's new "definitely non-null" types where appropriate. This helps us to more
    accurately represent the nullable/non-nullable expectations for API method calls.
    ([#496](https://github.com/mybatis/mybatis-dynamic-sql/pull/496))
+4. Added the ability to configure the library and change some default behaviors. Currently, this is limited to changing
+   the behavior of the library in regard to where clauses that will not render. See the "Configuration of the Library"
+   page for details. ([#515](https://github.com/mybatis/mybatis-dynamic-sql/pull/515))
+5. Added several checks for invalid SQL ([#516](https://github.com/mybatis/mybatis-dynamic-sql/pull/516))
+6. Added documentation for the various exceptions thrown by the library ([#517](https://github.com/mybatis/mybatis-dynamic-sql/pull/517))
+7. Update the "insertSelect" method in the Kotlin DSL to make it consistent with the other insert methods ([#524](https://github.com/mybatis/mybatis-dynamic-sql/pull/524))
 
 ## Release 1.4.0 - March 3, 2022
 

@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
  */
 package examples.kotlin.mybatis3.canonical
 
+import examples.kotlin.mybatis3.TestUtils
 import examples.kotlin.mybatis3.canonical.AddressDynamicSqlSupport.address
 import examples.kotlin.mybatis3.canonical.PersonDynamicSqlSupport.addressId
 import examples.kotlin.mybatis3.canonical.PersonDynamicSqlSupport.birthDate
@@ -24,53 +25,56 @@ import examples.kotlin.mybatis3.canonical.PersonDynamicSqlSupport.id
 import examples.kotlin.mybatis3.canonical.PersonDynamicSqlSupport.lastName
 import examples.kotlin.mybatis3.canonical.PersonDynamicSqlSupport.occupation
 import examples.kotlin.mybatis3.canonical.PersonDynamicSqlSupport.person
-import org.apache.ibatis.datasource.unpooled.UnpooledDataSource
-import org.apache.ibatis.jdbc.ScriptRunner
-import org.apache.ibatis.mapping.Environment
-import org.apache.ibatis.session.Configuration
 import org.apache.ibatis.session.ExecutorType
-import org.apache.ibatis.session.SqlSession
-import org.apache.ibatis.session.SqlSessionFactoryBuilder
-import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory
+import org.apache.ibatis.session.SqlSessionFactory
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.TestInstance.Lifecycle
+import org.mybatis.dynamic.sql.exception.NonRenderingWhereClauseException
 import org.mybatis.dynamic.sql.util.kotlin.elements.add
+import org.mybatis.dynamic.sql.util.kotlin.elements.case
+import org.mybatis.dynamic.sql.util.kotlin.elements.concat
 import org.mybatis.dynamic.sql.util.kotlin.elements.constant
 import org.mybatis.dynamic.sql.util.kotlin.elements.isIn
+import org.mybatis.dynamic.sql.util.kotlin.elements.sortColumn
+import org.mybatis.dynamic.sql.util.kotlin.elements.stringConstant
+import org.mybatis.dynamic.sql.util.kotlin.elements.sum
 import org.mybatis.dynamic.sql.util.kotlin.mybatis3.insertInto
+import org.mybatis.dynamic.sql.util.kotlin.mybatis3.insertSelect
+import org.mybatis.dynamic.sql.util.kotlin.mybatis3.multiSelect
 import org.mybatis.dynamic.sql.util.kotlin.mybatis3.select
-import java.io.InputStreamReader
-import java.sql.DriverManager
+import org.mybatis.dynamic.sql.util.mybatis3.CommonSelectMapper
 import java.util.*
 
+@TestInstance(Lifecycle.PER_CLASS)
 class PersonMapperTest {
-    private fun newSession(executorType: ExecutorType = ExecutorType.REUSE): SqlSession {
-        Class.forName(JDBC_DRIVER)
-        val script = javaClass.getResourceAsStream("/examples/kotlin/mybatis3/CreateSimpleDB.sql")
-        DriverManager.getConnection(JDBC_URL, "sa", "").use { connection ->
-            val sr = ScriptRunner(connection)
-            sr.setLogWriter(null)
-            sr.runScript(InputStreamReader(script!!))
-        }
+    private lateinit var sqlSessionFactory: SqlSessionFactory
 
-        val ds = UnpooledDataSource(JDBC_DRIVER, JDBC_URL, "sa", "")
-        val environment = Environment("test", JdbcTransactionFactory(), ds)
-        val config = Configuration(environment)
-        config.typeHandlerRegistry.register(YesNoTypeHandler::class.java)
-        config.addMapper(PersonMapper::class.java)
-        config.addMapper(PersonWithAddressMapper::class.java)
-        config.addMapper(AddressMapper::class.java)
-        return SqlSessionFactoryBuilder().build(config).openSession(executorType)
+    @BeforeAll
+    fun setup() {
+        sqlSessionFactory = TestUtils.buildSqlSessionFactory {
+            withInitializationScript("/examples/kotlin/mybatis3/CreateSimpleDB.sql")
+            withMapper(PersonMapper::class)
+            withMapper(PersonWithAddressMapper::class)
+            withMapper(AddressMapper::class)
+            withMapper(CommonSelectMapper::class)
+            withTypeHandler(YesNoTypeHandler::class)
+        }
     }
 
     @Test
     fun testSelect() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.select {
-                where { id isEqualTo 1 }
-                or { occupation.isNull() }
+                where {
+                    id isEqualTo 1
+                    or { occupation.isNull() }
+                }
             }
 
             assertThat(rows).hasSize(3)
@@ -79,7 +83,7 @@ class PersonMapperTest {
 
     @Test
     fun testSelectAll() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.select { allRows() }
@@ -92,7 +96,7 @@ class PersonMapperTest {
 
     @Test
     fun testSelectAllOrdered() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.select {
@@ -108,12 +112,14 @@ class PersonMapperTest {
 
     @Test
     fun testSelectDistinct() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.selectDistinct {
-                where { id isGreaterThan 1 }
-                or { occupation.isNull() }
+                where {
+                    id isGreaterThan 1
+                    or { occupation.isNull() }
+                }
             }
 
             assertThat(rows).hasSize(5)
@@ -122,7 +128,7 @@ class PersonMapperTest {
 
     @Test
     fun testSelectWithTypeHandler() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.select {
@@ -138,17 +144,17 @@ class PersonMapperTest {
 
     @Test
     fun testSelectByPrimaryKeyWithMissingRecord() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = mapper.selectByPrimaryKey(300)
-            assertThat(record).isNull()
+            val row = mapper.selectByPrimaryKey(300)
+            assertThat(row).isNull()
         }
     }
 
     @Test
     fun testFirstNameIn() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.select {
@@ -163,7 +169,7 @@ class PersonMapperTest {
 
     @Test
     fun testFirstNameNotIn() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.select {
@@ -178,7 +184,7 @@ class PersonMapperTest {
 
     @Test
     fun testDelete() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.delete {
@@ -190,7 +196,7 @@ class PersonMapperTest {
 
     @Test
     fun testDeleteAll() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.delete { allRows() }
@@ -201,7 +207,7 @@ class PersonMapperTest {
 
     @Test
     fun testDeleteByPrimaryKey() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.deleteByPrimaryKey(2)
@@ -212,19 +218,19 @@ class PersonMapperTest {
 
     @Test
     fun testInsert() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
+            val row = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
 
-            val rows = mapper.insert(record)
+            val rows = mapper.insert(row)
             assertThat(rows).isEqualTo(1)
         }
     }
 
     @Test
     fun testGeneralInsert() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.generalInsert {
@@ -242,8 +248,8 @@ class PersonMapperTest {
     }
 
     @Test
-    fun testInsertSelect() {
-        newSession().use { session ->
+    fun testInsertSelectExtensionFunction() {
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.insertSelect {
@@ -259,8 +265,35 @@ class PersonMapperTest {
     }
 
     @Test
+    fun testInsertSelect() {
+        sqlSessionFactory.openSession().use { session ->
+            val mapper = session.getMapper(PersonMapper::class.java)
+
+            val insertStatement = insertSelect {
+                into(person)
+                columns(id, firstName, lastName, employed, occupation, addressId, birthDate)
+                select(add(id, constant<Int>("100")), firstName, lastName, employed, occupation, addressId, birthDate) {
+                    from(person)
+                    orderBy(id)
+                }
+            }
+
+            val expected = "insert into Person " +
+                    "(id, first_name, last_name, employed, occupation, address_id, birth_date) " +
+                    "select (id + 100), first_name, last_name, employed, occupation, address_id, birth_date " +
+                    "from Person order by id"
+
+            assertThat(insertStatement.insertStatement).isEqualTo(expected)
+
+            val rows = mapper.insertSelect(insertStatement)
+
+            assertThat(rows).isEqualTo(6)
+        }
+    }
+
+    @Test
     fun testInsertBatch() {
-        newSession(ExecutorType.BATCH).use { session ->
+        sqlSessionFactory.openSession(ExecutorType.BATCH).use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val record1 = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
@@ -276,7 +309,7 @@ class PersonMapperTest {
 
     @Test
     fun testInsertMultiple() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val record1 = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
@@ -289,24 +322,24 @@ class PersonMapperTest {
 
     @Test
     fun testInsertSelective() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = PersonRecord(100, "Joe", LastName("Jones"), Date(), false, null, 1)
+            val row = PersonRecord(100, "Joe", LastName("Jones"), Date(), false, null, 1)
 
-            val rows = mapper.insertSelective(record)
+            val rows = mapper.insertSelective(row)
             assertThat(rows).isEqualTo(1)
         }
     }
 
     @Test
     fun testUpdateByPrimaryKey() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
+            val row = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
 
-            var rows = mapper.insert(record)
+            var rows = mapper.insert(row)
             assertThat(rows).isEqualTo(1)
 
             rows = mapper.update {
@@ -322,12 +355,12 @@ class PersonMapperTest {
 
     @Test
     fun testUpdateByPrimaryKeySelective() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
+            val row = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
 
-            var rows = mapper.insert(record)
+            var rows = mapper.insert(row)
             assertThat(rows).isEqualTo(1)
 
             rows = mapper.update {
@@ -344,18 +377,20 @@ class PersonMapperTest {
 
     @Test
     fun testUpdate() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
+            val row = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
 
-            var rows = mapper.insert(record)
+            var rows = mapper.insert(row)
             assertThat(rows).isEqualTo(1)
 
             rows = mapper.update {
                 set(occupation) equalTo "Programmer"
-                where { id isEqualTo 100 }
-                and { firstName isEqualTo "Joe" }
+                where {
+                    id isEqualTo 100
+                    and { firstName isEqualTo "Joe" }
+                }
             }
 
             assertThat(rows).isEqualTo(1)
@@ -367,12 +402,12 @@ class PersonMapperTest {
 
     @Test
     fun testUpdateOneField() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
+            val row = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
 
-            var rows = mapper.insert(record)
+            var rows = mapper.insert(row)
             assertThat(rows).isEqualTo(1)
 
             rows = mapper.update {
@@ -389,12 +424,12 @@ class PersonMapperTest {
 
     @Test
     fun testUpdateOneFieldInAllRows() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
+            val row = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
 
-            var rows = mapper.insert(record)
+            var rows = mapper.insert(row)
             assertThat(rows).isEqualTo(1)
 
             rows = mapper.update {
@@ -410,12 +445,12 @@ class PersonMapperTest {
 
     @Test
     fun testUpdateAll() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
+            val row = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
 
-            var rows = mapper.insert(record)
+            var rows = mapper.insert(row)
             assertThat(rows).isEqualTo(1)
 
             rows = mapper.update {
@@ -431,12 +466,12 @@ class PersonMapperTest {
 
     @Test
     fun testUpdateSelective() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
-            val record = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
+            val row = PersonRecord(100, "Joe", LastName("Jones"), Date(), true, "Developer", 1)
 
-            var rows = mapper.insert(record)
+            var rows = mapper.insert(row)
             assertThat(rows).isEqualTo(1)
 
             rows = mapper.update {
@@ -453,7 +488,7 @@ class PersonMapperTest {
 
     @Test
     fun testCount1() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.count {
@@ -469,12 +504,14 @@ class PersonMapperTest {
 
     @Test
     fun testCount2() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.count {
-                where { employed.isTrue() }
-                and { occupation isEqualTo "Brontosaurus Operator" }
+                where {
+                    employed.isTrue()
+                    and { occupation isEqualTo "Brontosaurus Operator" }
+                }
             }
 
             assertThat(rows).isEqualTo(2L)
@@ -483,7 +520,7 @@ class PersonMapperTest {
 
     @Test
     fun testCount3() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.count {
@@ -499,14 +536,16 @@ class PersonMapperTest {
 
     @Test
     fun testCount4() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.count {
-                where { id isEqualTo 1 }
-                or {
-                    id isEqualTo 2
-                    or { id isEqualTo 3 }
+                where {
+                    id isEqualTo 1
+                    or {
+                        id isEqualTo 2
+                        or { id isEqualTo 3 }
+                    }
                 }
             }
 
@@ -516,14 +555,16 @@ class PersonMapperTest {
 
     @Test
     fun testCount5() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.count {
-                where { id isLessThan 5 }
-                and {
-                    id isLessThan 3
-                    and { id isEqualTo 1 }
+                where {
+                    id isLessThan 5
+                    and {
+                        id isLessThan 3
+                        and { id isEqualTo 1 }
+                    }
                 }
             }
 
@@ -533,7 +574,7 @@ class PersonMapperTest {
 
     @Test
     fun testCountAll() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.count { allRows() }
@@ -544,7 +585,7 @@ class PersonMapperTest {
 
     @Test
     fun testCountLastName() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.count(lastName) { allRows() }
@@ -555,7 +596,7 @@ class PersonMapperTest {
 
     @Test
     fun testCountDistinctLastName() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.countDistinct(lastName) { allRows() }
@@ -566,7 +607,7 @@ class PersonMapperTest {
 
     @Test
     fun testTypeHandledLike() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.select {
@@ -581,7 +622,7 @@ class PersonMapperTest {
 
     @Test
     fun testTypeHandledNotLike() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonMapper::class.java)
 
             val rows = mapper.select {
@@ -596,7 +637,7 @@ class PersonMapperTest {
 
     @Test
     fun testJoinAllRows() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonWithAddressMapper::class.java)
 
             val records = mapper.select {
@@ -627,7 +668,7 @@ class PersonMapperTest {
 
     @Test
     fun testJoinOneRow() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonWithAddressMapper::class.java)
 
             val records = mapper.select {
@@ -653,7 +694,7 @@ class PersonMapperTest {
 
     @Test
     fun testJoinDistinct() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonWithAddressMapper::class.java)
 
             val records = mapper.selectDistinct {
@@ -679,13 +720,13 @@ class PersonMapperTest {
 
     @Test
     fun testJoinPrimaryKey() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonWithAddressMapper::class.java)
 
-            val record = mapper.selectByPrimaryKey(1)
+            val row = mapper.selectByPrimaryKey(1)
 
-            assertThat(record).isNotNull
-            with(record!!) {
+            assertThat(row).isNotNull
+            with(row!!) {
                 assertThat(id).isEqualTo(1)
                 assertThat(employed).isTrue
                 assertThat(firstName).isEqualTo("Fred")
@@ -703,18 +744,18 @@ class PersonMapperTest {
 
     @Test
     fun testJoinPrimaryKeyInvalidRecord() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper = session.getMapper(PersonWithAddressMapper::class.java)
 
-            val record = mapper.selectByPrimaryKey(55)
+            val row = mapper.selectByPrimaryKey(55)
 
-            assertThat(record).isNull()
+            assertThat(row).isNull()
         }
     }
 
     @Test
     fun testWithEnumOrdinalTypeHandler() {
-        newSession().use { session ->
+        sqlSessionFactory.openSession().use { session ->
             val mapper: AddressMapper = session.getMapper(AddressMapper::class.java)
 
             val insertStatement = insertInto(address) {
@@ -739,8 +780,180 @@ class PersonMapperTest {
         }
     }
 
-    companion object {
-        const val JDBC_URL = "jdbc:hsqldb:mem:aname"
-        const val JDBC_DRIVER = "org.hsqldb.jdbcDriver"
+    @Test
+    fun testRawMultiSelectWithUnion() {
+        sqlSessionFactory.openSession().use { session ->
+            val mapper = session.getMapper(PersonMapper::class.java)
+            val selectStatement = multiSelect {
+                select(id.`as`("A_ID"), firstName, lastName, birthDate, employed, occupation, addressId) {
+                    from(person)
+                    where { id isLessThanOrEqualTo 2 }
+                    orderBy(id)
+                    limit(1)
+                }
+                union {
+                    select(id.`as`("A_ID"), firstName, lastName, birthDate, employed, occupation, addressId) {
+                        from(person)
+                        where { id isGreaterThanOrEqualTo 4 }
+                        orderBy(id.descending())
+                        limit(1)
+                    }
+                }
+                orderBy(sortColumn("A_ID"))
+                limit(2)
+                offset(1)
+            }
+
+            val expected =
+                "(select id as A_ID, first_name, last_name, birth_date, employed, occupation, address_id " +
+                        "from Person " +
+                        "where id <= #{parameters.p1,jdbcType=INTEGER} " +
+                        "order by id limit #{parameters.p2}) " +
+                        "union " +
+                        "(select id as A_ID, first_name, last_name, birth_date, employed, occupation, address_id " +
+                        "from Person " +
+                        "where id >= #{parameters.p3,jdbcType=INTEGER} " +
+                        "order by id DESC limit #{parameters.p4}) " +
+                        "order by A_ID limit #{parameters.p5} offset #{parameters.p6}"
+
+            assertThat(selectStatement.selectStatement).isEqualTo(expected)
+
+            val records = mapper.selectMany(selectStatement)
+
+            assertThat(records).hasSize(1)
+            with(records[0]) {
+                assertThat(id).isEqualTo(6)
+                assertThat(firstName).isEqualTo("Bamm Bamm")
+                assertThat(lastName!!.name).isEqualTo("Rubble")
+                assertThat(birthDate).isNotNull
+                assertThat(employed).isFalse
+                assertThat(occupation).isNull()
+                assertThat(addressId).isEqualTo(2)
+            }
+        }
+    }
+
+    @Test
+    fun testMultiSelectWithNonRenderingWhereClauseDisAllowed() {
+        assertThatExceptionOfType(NonRenderingWhereClauseException::class.java).isThrownBy {
+            multiSelect {
+                select(id.`as`("A_ID"), firstName, lastName, birthDate, employed, occupation, addressId) {
+                    from(person)
+                    where { id isLessThanOrEqualTo 2 }
+                    orderBy(id)
+                    limit(1)
+                }
+                union {
+                    select(id.`as`("A_ID"), firstName, lastName, birthDate, employed, occupation, addressId) {
+                        from(person)
+                        where { id isGreaterThanOrEqualToWhenPresent null }
+                        orderBy(id.descending())
+                        limit(1)
+                    }
+                }
+                orderBy(sortColumn("A_ID"))
+                limit(2)
+                offset(1)
+            }
+        }
+    }
+
+    @Test
+    fun testMultiSelectWithNonRenderingWhereClauseAllowed() {
+        val selectStatement = multiSelect {
+            select(id, firstName) {
+                from(person)
+                where { id isLessThanOrEqualTo 2 }
+            }
+            union {
+                select(id, firstName) {
+                    from(person)
+                    where { id isGreaterThanOrEqualToWhenPresent null }
+                    // following should be ignored in favor of the statement configuration...
+                    configureStatement { isNonRenderingWhereClauseAllowed = false }
+                }
+            }
+            configureStatement { isNonRenderingWhereClauseAllowed = true }
+        }
+
+        val expected = "(select id, first_name from Person where id <= #{parameters.p1,jdbcType=INTEGER}) " +
+                "union (select id, first_name from Person)"
+        assertThat(selectStatement.selectStatement).isEqualTo(expected)
+    }
+
+    @Test
+    fun testInsertSelectWithNonRenderingWhereClauseDisAllowed() {
+        assertThatExceptionOfType(NonRenderingWhereClauseException::class.java).isThrownBy {
+            insertSelect {
+                into(person)
+                select(id, firstName, lastName, birthDate, employed, occupation, addressId) {
+                    from(person)
+                    where { id isGreaterThanOrEqualToWhenPresent null }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun testInsertSelectWithNonRenderingWhereClauseAllowed() {
+        val insertStatement = insertSelect {
+            into(person)
+            select(id, firstName, lastName, birthDate, employed, occupation, addressId) {
+                from(person)
+                where { id isGreaterThanOrEqualToWhenPresent null }
+                // following should be ignored in favor of the statement configuration...
+                configureStatement { isNonRenderingWhereClauseAllowed = false }
+            }
+            configureStatement { isNonRenderingWhereClauseAllowed = true }
+        }
+
+        val expected = "insert into Person " +
+                "select id, first_name, last_name, birth_date, employed, occupation, address_id from Person"
+        assertThat(insertStatement.insertStatement).isEqualTo(expected)
+    }
+
+    @Test
+    fun testSumWithCase() {
+        sqlSessionFactory.openSession().use { session ->
+            val mapper = session.getMapper(CommonSelectMapper::class.java)
+
+            val selectStatement = select(id, sum(case {
+                `when` {
+                    id isEqualTo 1
+                    then(101)
+                }
+                `else`(999)
+            }).`as`("fred")) {
+                from(person)
+                groupBy(id)
+            }
+
+            val expected =
+                "select id, sum(case when id = #{parameters.p1,jdbcType=INTEGER} then 101 else 999 end) as fred from Person group by id"
+            assertThat(selectStatement.selectStatement).isEqualTo(expected)
+
+            val rows = mapper.selectManyMappedRows(selectStatement)
+            assertThat(rows).hasSize(6)
+        }
+    }
+
+    @Test
+    fun testConcat() {
+        sqlSessionFactory.openSession().use { session ->
+            val mapper = session.getMapper(CommonSelectMapper::class.java)
+
+            val selectStatement = select(id, concat(firstName, stringConstant(" "), lastName).`as`("fullname")) {
+                from(person)
+                where { concat(firstName, stringConstant(" "), lastName) isEqualTo "Fred Flintstone" }
+            }
+
+            val expected =
+                "select id, concat(first_name, ' ', last_name) as fullname from Person " +
+                        "where concat(first_name, ' ', last_name) = #{parameters.p1,jdbcType=VARCHAR}"
+            assertThat(selectStatement.selectStatement).isEqualTo(expected)
+
+            val rows = mapper.selectManyMappedRows(selectStatement)
+            assertThat(rows).hasSize(1)
+        }
     }
 }

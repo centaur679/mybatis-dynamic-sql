@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2021 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,19 +15,19 @@
  */
 package org.mybatis.dynamic.sql;
 
-import java.sql.JDBCType;
 import java.util.Optional;
 
-import org.mybatis.dynamic.sql.render.RenderingStrategy;
+import org.jspecify.annotations.Nullable;
 
 /**
- * Describes additional attributes of columns that are necessary for binding the column as a JDBC parameter.
- * Columns in where clauses are typically bound.
+ * Describes a column with a known data type. The type is only used by the compiler to assure type safety
+ * when building clauses with conditions.
  *
  * @author Jeff Butler
  *
- * @param <T> - the Java type that corresponds to this column
-*/
+ * @param <T>
+ *            - the Java type that corresponds to this column
+ */
 public interface BindableColumn<T> extends BasicColumn {
 
     /**
@@ -36,19 +36,7 @@ public interface BindableColumn<T> extends BasicColumn {
     @Override
     BindableColumn<T> as(String alias);
 
-    default Optional<JDBCType> jdbcType() {
-        return Optional.empty();
-    }
-
-    default Optional<String> typeHandler() {
-        return Optional.empty();
-    }
-
-    default Optional<RenderingStrategy> renderingStrategy() {
-        return Optional.empty();
-    }
-
-    default Object convertParameterType(T value) {
+    default @Nullable Object convertParameterType(T value) {
         return value;
     }
 

@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -39,7 +39,6 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for understanding where bind parameters are allowed
- *
  */
 class BindingTest {
 
@@ -52,6 +51,7 @@ class BindingTest {
     void setup() throws Exception {
         Class.forName(JDBC_DRIVER);
         InputStream is = getClass().getResourceAsStream("/examples/animal/data/CreateAnimalData.sql");
+        assert is != null;
         try (Connection connection = DriverManager.getConnection(JDBC_URL, "sa", "")) {
             ScriptRunner sr = new ScriptRunner(connection);
             sr.setLogWriter(null);
@@ -67,8 +67,7 @@ class BindingTest {
 
     @Test
     void testBindInSelectList() {
-        SqlSession sqlSession = sqlSessionFactory.openSession();
-        try {
+        try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
             Connection connection = sqlSession.getConnection();
 
             PreparedStatement ps = connection.prepareStatement("select brain_weight + ? as calc from AnimalData where id = ?");
@@ -87,15 +86,12 @@ class BindingTest {
             assertThat(calculatedWeight).isEqualTo(1.005);
         } catch (SQLException e) {
             fail("SQL Exception", e);
-        } finally {
-            sqlSession.close();
         }
     }
 
     @Test
     void testBindInWeirdWhere() {
-        SqlSession sqlSession = sqlSessionFactory.openSession();
-        try {
+        try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
             Connection connection = sqlSession.getConnection();
 
             PreparedStatement ps = connection.prepareStatement("select brain_weight from AnimalData where brain_weight + ? > ? and id = ?");
@@ -115,8 +111,6 @@ class BindingTest {
             assertThat(calculatedWeight).isEqualTo(.005);
         } catch (SQLException e) {
             fail("SQL Exception", e);
-        } finally {
-            sqlSession.close();
         }
     }
 }

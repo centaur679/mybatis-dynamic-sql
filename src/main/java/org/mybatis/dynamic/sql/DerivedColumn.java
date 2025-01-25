@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,9 @@ import java.sql.JDBCType;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.mybatis.dynamic.sql.render.TableAliasCalculator;
+import org.jspecify.annotations.Nullable;
+import org.mybatis.dynamic.sql.render.RenderingContext;
+import org.mybatis.dynamic.sql.util.FragmentAndParameters;
 
 /**
  * A derived column is a column that is not directly related to a table. This is primarily
@@ -28,15 +30,15 @@ import org.mybatis.dynamic.sql.render.TableAliasCalculator;
  * qualifier set in a query. If a table qualifier is required it can be set directly in the
  * builder for this class.
  *
- * @param <T> The Java type that corresponds to this column - not used except for compiler type checking
- *           for conditions
+ * @param <T>
+ *            The Java type that corresponds to this column - not used except for compiler type checking for conditions
  */
 public class DerivedColumn<T> implements BindableColumn<T> {
     private final String name;
-    private final String tableQualifier;
-    private final String columnAlias;
-    private final JDBCType jdbcType;
-    private final String typeHandler;
+    private final @Nullable String tableQualifier;
+    private final @Nullable String columnAlias;
+    private final @Nullable JDBCType jdbcType;
+    private final @Nullable String typeHandler;
 
     protected DerivedColumn(Builder<T> builder) {
         this.name = Objects.requireNonNull(builder.name);
@@ -62,8 +64,9 @@ public class DerivedColumn<T> implements BindableColumn<T> {
     }
 
     @Override
-    public String renderWithTableAlias(TableAliasCalculator tableAliasCalculator) {
-        return tableQualifier == null ? name : tableQualifier + "." + name; //$NON-NLS-1$
+    public FragmentAndParameters render(RenderingContext renderingContext) {
+        String fragment = tableQualifier == null ? name : tableQualifier + "." + name; //$NON-NLS-1$
+        return FragmentAndParameters.fromFragment(fragment);
     }
 
     @Override
@@ -91,18 +94,18 @@ public class DerivedColumn<T> implements BindableColumn<T> {
     }
 
     public static class Builder<T> {
-        private String name;
-        private String tableQualifier;
-        private String columnAlias;
-        private JDBCType jdbcType;
-        private String typeHandler;
+        private @Nullable String name;
+        private @Nullable String tableQualifier;
+        private @Nullable String columnAlias;
+        private @Nullable JDBCType jdbcType;
+        private @Nullable String typeHandler;
 
         public Builder<T> withName(String name) {
             this.name = name;
             return this;
         }
 
-        public Builder<T> withTableQualifier(String tableQualifier) {
+        public Builder<T> withTableQualifier(@Nullable String tableQualifier) {
             this.tableQualifier = tableQualifier;
             return this;
         }
@@ -112,12 +115,12 @@ public class DerivedColumn<T> implements BindableColumn<T> {
             return this;
         }
 
-        public Builder<T> withJdbcType(JDBCType jdbcType) {
+        public Builder<T> withJdbcType(@Nullable JDBCType jdbcType) {
             this.jdbcType = jdbcType;
             return this;
         }
 
-        public Builder<T> withTypeHandler(String typeHandler) {
+        public Builder<T> withTypeHandler(@Nullable String typeHandler) {
             this.typeHandler = typeHandler;
             return this;
         }

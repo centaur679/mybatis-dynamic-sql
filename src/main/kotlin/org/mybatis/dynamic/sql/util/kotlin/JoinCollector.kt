@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,60 +15,31 @@
  */
 package org.mybatis.dynamic.sql.util.kotlin
 
-import org.mybatis.dynamic.sql.BasicColumn
+import org.mybatis.dynamic.sql.BindableColumn
 import org.mybatis.dynamic.sql.SqlBuilder
-import org.mybatis.dynamic.sql.select.join.JoinCondition
-import org.mybatis.dynamic.sql.select.join.JoinCriterion
+import org.mybatis.dynamic.sql.VisitableCondition
 
 typealias JoinReceiver = JoinCollector.() -> Unit
 
 @MyBatisDslMarker
 class JoinCollector {
-    private var onJoinCriterion: JoinCriterion? = null
-    internal val andJoinCriteria = mutableListOf<JoinCriterion>()
+    private val criteriaCollector = GroupingCriteriaCollector()
 
-    internal fun onJoinCriterion() : JoinCriterion =
-        onJoinCriterion?: throw KInvalidSQLException("You must specify an \"on\" condition in a join")
+    internal fun initialCriterion() = invalidIfNull(criteriaCollector.initialCriterion, "ERROR.22") //$NON-NLS-1$
+    internal fun subCriteria() = criteriaCollector.subCriteria
 
-    fun on(leftColumn: BasicColumn): RightColumnCollector = RightColumnCollector {
-        onJoinCriterion = JoinCriterion.Builder()
-            .withConnector("on")
-            .withJoinColumn(leftColumn)
-            .withJoinCondition(it)
-            .build()
+    fun <T : Any> on(leftColumn: BindableColumn<T>): RightColumnCollector<T> = RightColumnCollector {
+        assertNull(criteriaCollector.initialCriterion, "ERROR.45") //$NON-NLS-1$
+        criteriaCollector.apply { leftColumn.invoke(it) }
     }
 
-    fun and(leftColumn: BasicColumn): RightColumnCollector = RightColumnCollector {
-        andJoinCriteria.add(
-            JoinCriterion.Builder()
-                .withConnector("and")
-                .withJoinColumn(leftColumn)
-                .withJoinCondition(it)
-                .build()
-        )
-    }
-
-    @Deprecated("Please use: on(leftColumn) equalTo rightColumn")
-    fun on(column: BasicColumn, condition: JoinCondition) {
-        onJoinCriterion = JoinCriterion.Builder()
-            .withConnector("on")
-            .withJoinColumn(column)
-            .withJoinCondition(condition)
-            .build()
-    }
-
-    @Deprecated("Please use: and(leftColumn) equalTo rightColumn")
-    fun and(column: BasicColumn, condition: JoinCondition) {
-        andJoinCriteria.add(
-            JoinCriterion.Builder()
-                .withConnector("and")
-                .withJoinColumn(column)
-                .withJoinCondition(condition)
-                .build()
-        )
+    fun <T : Any> and(leftColumn: BindableColumn<T>): RightColumnCollector<T> = RightColumnCollector {
+        criteriaCollector.and { leftColumn.invoke(it) }
     }
 }
 
-class RightColumnCollector(private val joinConditionConsumer: (JoinCondition) -> Unit) {
-    infix fun equalTo(rightColumn: BasicColumn) = joinConditionConsumer.invoke(SqlBuilder.equalTo(rightColumn))
+class RightColumnCollector<T : Any>(private val joinConditionConsumer: (VisitableCondition<T>) -> Unit) {
+    infix fun equalTo(rightColumn: BindableColumn<T>) = joinConditionConsumer.invoke(SqlBuilder.isEqualTo(rightColumn))
+
+    infix fun equalTo(value: T) = joinConditionConsumer.invoke(SqlBuilder.isEqualTo(value))
 }

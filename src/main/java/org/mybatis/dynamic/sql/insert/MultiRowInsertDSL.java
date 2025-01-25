@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
-import org.jetbrains.annotations.NotNull;
 import org.mybatis.dynamic.sql.SqlColumn;
 import org.mybatis.dynamic.sql.SqlTable;
 import org.mybatis.dynamic.sql.util.AbstractColumnMapping;
@@ -28,6 +27,7 @@ import org.mybatis.dynamic.sql.util.Buildable;
 import org.mybatis.dynamic.sql.util.ConstantMapping;
 import org.mybatis.dynamic.sql.util.NullMapping;
 import org.mybatis.dynamic.sql.util.PropertyMapping;
+import org.mybatis.dynamic.sql.util.RowMapping;
 import org.mybatis.dynamic.sql.util.StringConstantMapping;
 
 public class MultiRowInsertDSL<T> implements Buildable<MultiRowInsertModel<T>> {
@@ -46,7 +46,6 @@ public class MultiRowInsertDSL<T> implements Buildable<MultiRowInsertModel<T>> {
         return new ColumnMappingFinisher<>(column);
     }
 
-    @NotNull
     @Override
     public MultiRowInsertModel<T> build() {
         return MultiRowInsertModel.withRecords(records)
@@ -56,11 +55,11 @@ public class MultiRowInsertDSL<T> implements Buildable<MultiRowInsertModel<T>> {
     }
 
     @SafeVarargs
-    public static <T> IntoGatherer<T> insert(T...records) {
-        return MultiRowInsertDSL.insert(Arrays.asList(records));
+    public static <T> MultiRowInsertDSL.IntoGatherer<T> insert(T... records) {
+        return insert(Arrays.asList(records));
     }
 
-    public static <T> IntoGatherer<T> insert(Collection<T> records) {
+    public static <T> MultiRowInsertDSL.IntoGatherer<T> insert(Collection<T> records) {
         return new IntoGatherer<>(records);
     }
 
@@ -100,6 +99,11 @@ public class MultiRowInsertDSL<T> implements Buildable<MultiRowInsertModel<T>> {
 
         public MultiRowInsertDSL<T> toStringConstant(String constant) {
             columnMappings.add(StringConstantMapping.of(column, constant));
+            return MultiRowInsertDSL.this;
+        }
+
+        public MultiRowInsertDSL<T> toRow() {
+            columnMappings.add(RowMapping.of(column));
             return MultiRowInsertDSL.this;
         }
     }

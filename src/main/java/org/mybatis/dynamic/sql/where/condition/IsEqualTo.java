@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
  */
 package org.mybatis.dynamic.sql.where.condition;
 
+import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -22,10 +23,15 @@ import org.mybatis.dynamic.sql.AbstractSingleValueCondition;
 
 public class IsEqualTo<T> extends AbstractSingleValueCondition<T> {
 
-    private static final IsEqualTo<?> EMPTY = new IsEqualTo<Object>(null) {
+    private static final IsEqualTo<?> EMPTY = new IsEqualTo<Object>(-1) {
         @Override
-        public boolean shouldRender() {
-            return false;
+        public Object value() {
+            throw new NoSuchElementException("No value present"); //$NON-NLS-1$
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return true;
         }
     };
 
@@ -40,8 +46,8 @@ public class IsEqualTo<T> extends AbstractSingleValueCondition<T> {
     }
 
     @Override
-    public String renderCondition(String columnName, String placeholder) {
-        return columnName + " = " + placeholder; //$NON-NLS-1$
+    public String operator() {
+        return "="; //$NON-NLS-1$
     }
 
     public static <T> IsEqualTo<T> of(T value) {
@@ -55,7 +61,7 @@ public class IsEqualTo<T> extends AbstractSingleValueCondition<T> {
 
     /**
      * If renderable, apply the mapping to the value and return a new condition with the new value. Else return a
-     *     condition that will not render (this).
+     * condition that will not render (this).
      *
      * @param mapper a mapping function to apply to the value, if renderable
      * @param <R> type of the new condition

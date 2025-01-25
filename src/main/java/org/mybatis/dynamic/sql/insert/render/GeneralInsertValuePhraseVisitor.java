@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2021 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,27 +15,28 @@
  */
 package org.mybatis.dynamic.sql.insert.render;
 
+import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.mybatis.dynamic.sql.SqlColumn;
-import org.mybatis.dynamic.sql.render.RenderingStrategy;
+import org.jspecify.annotations.Nullable;
+import org.mybatis.dynamic.sql.render.RenderedParameterInfo;
+import org.mybatis.dynamic.sql.render.RenderingContext;
 import org.mybatis.dynamic.sql.util.AbstractColumnMapping;
 import org.mybatis.dynamic.sql.util.ConstantMapping;
 import org.mybatis.dynamic.sql.util.GeneralInsertMappingVisitor;
 import org.mybatis.dynamic.sql.util.NullMapping;
 import org.mybatis.dynamic.sql.util.StringConstantMapping;
+import org.mybatis.dynamic.sql.util.StringUtilities;
 import org.mybatis.dynamic.sql.util.ValueMapping;
 import org.mybatis.dynamic.sql.util.ValueOrNullMapping;
 import org.mybatis.dynamic.sql.util.ValueWhenPresentMapping;
 
 public class GeneralInsertValuePhraseVisitor extends GeneralInsertMappingVisitor<Optional<FieldAndValueAndParameters>> {
 
-    private final RenderingStrategy renderingStrategy;
-    private final AtomicInteger sequence = new AtomicInteger(1);
+    private final RenderingContext renderingContext;
 
-    public GeneralInsertValuePhraseVisitor(RenderingStrategy renderingStrategy) {
-        this.renderingStrategy = renderingStrategy;
+    public GeneralInsertValuePhraseVisitor(RenderingContext renderingContext) {
+        this.renderingContext = Objects.requireNonNull(renderingContext);
     }
 
     @Override
@@ -53,7 +54,7 @@ public class GeneralInsertValuePhraseVisitor extends GeneralInsertMappingVisitor
     @Override
     public Optional<FieldAndValueAndParameters> visit(StringConstantMapping mapping) {
         return FieldAndValueAndParameters.withFieldName(mapping.columnName())
-                .withValuePhrase("'" + mapping.constant() + "'") //$NON-NLS-1$ //$NON-NLS-2$
+                .withValuePhrase(StringUtilities.formatConstantForSQL(mapping.constant()))
                 .buildOptional();
     }
 
@@ -74,7 +75,7 @@ public class GeneralInsertValuePhraseVisitor extends GeneralInsertMappingVisitor
     }
 
     private Optional<FieldAndValueAndParameters> buildValueFragment(AbstractColumnMapping mapping,
-            Object value) {
+            @Nullable Object value) {
         return buildFragment(mapping, value);
     }
 
@@ -84,19 +85,12 @@ public class GeneralInsertValuePhraseVisitor extends GeneralInsertMappingVisitor
                 .buildOptional();
     }
 
-    private Optional<FieldAndValueAndParameters> buildFragment(AbstractColumnMapping mapping, Object value) {
-        String mapKey = RenderingStrategy.formatParameterMapKey(sequence);
-
-        String jdbcPlaceholder = mapping.mapColumn(c -> calculateJdbcPlaceholder(c, mapKey));
+    private Optional<FieldAndValueAndParameters> buildFragment(AbstractColumnMapping mapping, @Nullable Object value) {
+        RenderedParameterInfo parameterInfo = renderingContext.calculateParameterInfo(mapping.column());
 
         return FieldAndValueAndParameters.withFieldName(mapping.columnName())
-                .withValuePhrase(jdbcPlaceholder)
-                .withParameter(mapKey, value)
+                .withValuePhrase(parameterInfo.renderedPlaceHolder())
+                .withParameter(parameterInfo.parameterMapKey(), value)
                 .buildOptional();
-    }
-
-    private String calculateJdbcPlaceholder(SqlColumn<?> column, String parameterName) {
-        return column.renderingStrategy().orElse(renderingStrategy)
-                .getFormattedJdbcPlaceholder(column, RenderingStrategy.DEFAULT_PARAMETER_PREFIX, parameterName);
     }
 }

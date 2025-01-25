@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2022 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -53,8 +53,10 @@ open class SpringKotlinSubQueryTest {
                         orderBy(firstName.descending())
                     }
                 }
-                where { rowNum isLessThan 5 }
-                and { firstName isLike "%a%" }
+                where {
+                    rowNum isLessThan 5
+                    and { firstName isLike "%a%" }
+                }
             }
 
         assertThat(selectStatement.selectStatement).isEqualTo(
@@ -93,8 +95,10 @@ open class SpringKotlinSubQueryTest {
                     orderBy(firstName.descending())
                 }
             }
-            where { rowNum isLessThan 5 }
-            and { firstName isLike "%a%" }
+            where {
+                rowNum isLessThan 5
+                and { firstName isLike "%a%" }
+            }
         }.withRowMapper { rs, _ ->
             mapOf(
                 Pair("FIRST_NAME", rs.getString(1)),
@@ -109,12 +113,12 @@ open class SpringKotlinSubQueryTest {
 
     @Test
     fun testBasicSubQueryWithAliases() {
-        val rowNum = DerivedColumn.of<Int>("rownum()") `as` "myRows"
+        val rowNum = DerivedColumn.of<Int>("rownum()")
         val outerFirstName = "b"(firstName)
         val personId = DerivedColumn.of<Int>("personId", "b")
 
         val selectStatement =
-            select(outerFirstName.asCamelCase(), personId, rowNum) {
+            select(outerFirstName.asCamelCase(), personId, rowNum `as` "myRows") {
                 from {
                     select(id `as` "personId", firstName) {
                         from(person, "a")
@@ -123,8 +127,10 @@ open class SpringKotlinSubQueryTest {
                     }
                     + "b"
                 }
-                where { rowNum isLessThan 5 }
-                and { outerFirstName isLike "%a%" }
+                where {
+                    rowNum isLessThan 5
+                    and { outerFirstName isLike "%a%" }
+                }
             }
 
         assertThat(selectStatement.selectStatement).isEqualTo(

@@ -1,11 +1,11 @@
 /*
- *    Copyright 2016-2020 the original author or authors.
+ *    Copyright 2016-2025 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *       https://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
  *    distributed under the License is distributed on an "AS IS" BASIS,
@@ -59,7 +59,7 @@ import org.mybatis.dynamic.sql.util.mybatis3.MyBatis3Utils;
  * </pre>
  *
  * <p>You could also implement a helper method that would set fields based on values of a record. For example,
- * the following method would set all fields of a record based on whether or not the values are null:
+ * the following method would set all fields of a row based on whether the values are null:
  *
  * <pre>
  * static UpdateDSL&lt;UpdateModel&gt; updateSelectiveColumns(PersonRecord record,
